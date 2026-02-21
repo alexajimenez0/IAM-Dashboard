@@ -57,6 +57,7 @@ logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+logs.md
 
 # Runtime data
 pids/
@@ -161,6 +162,7 @@ scanner-results/
 *.sarif
 scanner-reports/
 security-reports/
+checkov-results.json
 
 # Terraform Plan Files
 *.tfplan
@@ -177,3 +179,6 @@ lambda_function.zip
 lambda-out/
 npm-cache/
 nul
+
+# File I use to draft my thoughts
+temp.txt
