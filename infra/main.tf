@@ -23,7 +23,7 @@ provider "aws" {
   region = var.aws_region
 }
 
-# Shared KMS key for CloudWatch log group encryption
+# Shared KMS key for encryption
 resource "aws_kms_key" "logs" {
   description             = "KMS key for encrypting CloudWatch Log Groups (IAM Dashboard)"
   deletion_window_in_days = 30
@@ -74,6 +74,7 @@ module "lambda" {
   lambda_function_name = var.lambda_function_name
   dynamodb_table_name  = var.dynamodb_table_name
   s3_bucket_name       = var.s3_bucket_name
+  lambda_kms_key_arn   = aws_kms_key.logs.arn
 }
 
 # API Gateway Module
