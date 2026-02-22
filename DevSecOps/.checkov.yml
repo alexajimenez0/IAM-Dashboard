@@ -34,6 +34,9 @@ skip-check:
   - CKV_AWS_2
   - CKV_AWS_3
   - CKV_AWS_309 # API Gateway Authorization type. Ignored temporarily until Cognito is added
+  - CKV_AWS_117 # Mandates that Lambda is launched in a VPC. Less security and more architectural preference
+  - CKV_AWS_272 # Enforces Lambda to use Code Signing. This is a large architecture change, and isn't strictly necessary. Might add in the future.
+  - CKV_AWS_116 # Forces Lambda to be connected an SQS Dead Letter Queue. Since Lambda is connected to APIGateway, this isn't strictly necessary.
 
 # Optional: keep summary at top
 summary-position: top
