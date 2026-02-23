@@ -28,8 +28,10 @@ docker-compose up -d
 
 ### Full-Stack Development
 
+New contributors only need Docker. No need to install Node.js or run `npm install` locally.
+
 ```bash
-# Start all services
+# Start all services (includes Vite frontend on port 3001 with hot reload)
 docker-compose up -d
 
 # View logs
@@ -39,9 +41,12 @@ docker-compose logs -f
 docker-compose down
 ```
 
+The **frontend** runs the Vite dev server in a container at http://localhost:3001 with hot reload; edit `src/` and the browser updates automatically.
+
 ## 🌐 Access Points
 
-- **Main Dashboard**: http://localhost:5001
+- **Frontend (Vite dev server, hot reload)**: http://localhost:3001 — runs in Docker; no Node.js/npm needed on host
+- **Main Dashboard (Flask)**: http://localhost:5001
 - **Grafana Monitoring**: http://localhost:3000 (admin/admin)
 - **Prometheus Metrics**: http://localhost:9090
 
@@ -90,7 +95,7 @@ sudo chown -R $USER ~/.docker
 ```
 
 **Common Issues:**
-- **Port conflicts**: Ensure ports 5001, 3000, 5432, 6379, 9090 are available
+- **Port conflicts**: Ensure ports 3001 (frontend), 3000 (Grafana), 5001, 5432, 6379, 9090 are available
 - **Docker not running**: Start Docker Desktop or Docker daemon
 - **Permission denied**: Check Docker group membership
 - **Out of space**: Run `docker system prune` to clean up

@@ -1,4 +1,22 @@
 services:
+  # Vite dev server — no Node.js/npm needed on host; hot reload in Docker
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: iam-dashboard-frontend
+    ports:
+      - "3001:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_GATEWAY_URL=${VITE_API_GATEWAY_URL:-http://localhost:5001}
+    networks:
+      - cybersecurity-network
+    stdin_open: true
+    tty: true
+
   # Main Flask application
   app:
     build: .

@@ -1,0 +1,14 @@
+# Vite dev server for local development — no Node.js needed on host
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+COPY . .
+
+# Dev server runs in container; port 5173 (Vite default) mapped to host 3001
+EXPOSE 5173
+
+CMD ["npm", "run", "dev"]
