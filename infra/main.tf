@@ -23,11 +23,56 @@ provider "aws" {
   region = var.aws_region
 }
 
+data "aws_caller_identity" "current" {}
+
 # Shared KMS key for encryption
 resource "aws_kms_key" "logs" {
   description             = "KMS key for encrypting CloudWatch Log Groups (IAM Dashboard)"
   deletion_window_in_days = 30
   enable_key_rotation     = true
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "EnableRootPermissions"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowGitHubActionsRoleAdmin"
+        Effect = "Allow"
+        Principal = {
+          AWS = module.github_actions.github_actions_deployer_role_arn
+        }
+        Action = [
+          "kms:Describe*",
+          "kms:Get*",
+          "kms:List*",
+          "kms:Put*",
+          "kms:Update*",
+          "kms:Create*",
+          "kms:Enable*",
+          "kms:Disable*",
+          "kms:Revoke*",
+          "kms:Delete*",
+          "kms:TagResource",
+          "kms:UntagResource",
+          "kms:ScheduleKeyDeletion",
+          "kms:CancelKeyDeletion",
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:CreateGrant"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
 
   tags = {
     Name      = "${var.project_name}-${var.environment}-logs-kms"
