@@ -48,15 +48,15 @@ jobs:
       run: |
         echo "🔍 Running Gitleaks secret detection..."
         docker run --rm \
-          -v ${{ github.workspace }}:/workspace \
-          -v ${{ runner.temp }}:/tmpout \
+          -v ${{ github.workspace }}:/workspace:ro \
           zricethezav/gitleaks:v8.18.0 \
           detect \
           --config /workspace/DevSecOps/.gitleaks.toml \
           --source /workspace \
           --no-git \
           --report-format json \
-          --report-path /tmpout/gitleaks-results.json
+          --report-path /dev/stdout \
+          > "$RUNNER_TEMP/gitleaks-results.json"
       continue-on-error: false
 
     - name: Upload Checkov Results
