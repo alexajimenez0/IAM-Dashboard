@@ -50,6 +50,7 @@ module "s3" {
   environment    = var.environment
   project_name   = var.project_name
   s3_bucket_name = var.s3_bucket_name
+  s3_kms_key_arn = aws_kms_key.logs.arn
 }
 
 # DynamoDB Module
