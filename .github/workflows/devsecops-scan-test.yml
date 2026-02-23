@@ -2,9 +2,9 @@ name: DevSecOps Security Scan
 
 on:
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, develop, "feature/devops/fix-ci-pipeline" ]
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, "feature/devops/fix-ci-pipeline" ]
   schedule:
     # Run security scans daily at 2 AM UTC
     - cron: '0 2 * * *'
@@ -38,10 +38,10 @@ jobs:
         docker run --rm \
           -v ${{ github.workspace }}:/workspace:ro \
           bridgecrew/checkov:3.1.25 \
-          -d /workspace/infra \
+          -d /workspace/ \
           --config-file /workspace/DevSecOps/.checkov.yml \
           --output json \
-          > /tmp/checkov-results.json
+          > "$RUNNER_TEMP/checkov-results.json"
 
 
     - name: Run Gitleaks Secret Detection
@@ -55,7 +55,7 @@ jobs:
           --source /workspace \
           --no-git \
           --report-format json \
-          --report-path /tmp/gitleaks-results.json
+          --report-path "$RUNNER_TEMP/gitleaks-results.json"
       continue-on-error: false
 
     - name: Upload Checkov Results
@@ -63,7 +63,7 @@ jobs:
       if: always()
       with:
         name: checkov-results
-        path: /tmp/checkov-results.json
+        path: ${{ runner.temp }}/checkov-results.json
         retention-days: 30
 
     - name: Upload Gitleaks Results
@@ -71,7 +71,7 @@ jobs:
       if: always()
       with:
         name: gitleaks-results
-        path: /tmp/gitleaks-results.json
+        path: ${{ runner.temp }}/gitleaks-results.json
         retention-days: 30
 
     - name: Security Scan Summary
