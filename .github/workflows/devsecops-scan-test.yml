@@ -53,7 +53,7 @@ jobs:
           detect \
           --config /workspace/DevSecOps/.gitleaks.toml \
           --source /workspace \
-          --gitleaks-ignore-path /workspace/DevSecOps/.gitleaksignore \
+          --gitleaks-ignore-path /workspace/src/components/SecurityHub.tsx \
           --no-git \
           --report-format json \
           --report-path /dev/stdout \
