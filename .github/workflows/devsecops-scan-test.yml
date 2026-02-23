@@ -48,7 +48,7 @@ jobs:
       run: |
         echo "🔍 Running Gitleaks secret detection..."
         docker run --rm \
-          -v ${{ github.workspace }}:/workspace: \
+          -v ${{ github.workspace }}:/workspace \
           -v ${{ runner.temp }}:/tmpout \
           zricethezav/gitleaks:v8.18.0 \
           detect \
