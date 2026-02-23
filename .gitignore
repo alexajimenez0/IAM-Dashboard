@@ -174,5 +174,6 @@ build/
 # Lambda deployment packages
 *.zip
 lambda_function.zip
+lambda-out/
 npm-cache/
 nul
