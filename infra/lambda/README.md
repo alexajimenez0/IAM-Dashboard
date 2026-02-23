@@ -39,6 +39,10 @@ The Lambda role (`iam-dashboard-lambda-role`) has permissions for:
   - EC2: DescribeInstances, DescribeSecurityGroups, DescribeVolumes, DescribeSnapshots
   - S3: GetBucketEncryption, GetPublicAccessBlock
 
+## 📦 Dependencies
+
+Python deps (boto3, etc.) are **not** committed. They are installed at package time: `pip install -r requirements.txt -t .` (done in CI/deploy or locally before zipping).
+
 ## 🚀 How to Deploy
 
 The Lambda function is automatically packaged by Terraform. Simply run:

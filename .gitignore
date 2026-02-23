@@ -135,6 +135,17 @@ temp/
 *.tfstate.*
 .terraform/
 
+# Lambda vendored deps (install at build: pip install -r requirements.txt -t .)
+infra/lambda/boto3/
+infra/lambda/botocore/
+infra/lambda/urllib3/
+infra/lambda/s3transfer/
+infra/lambda/dateutil/
+infra/lambda/jmespath/
+infra/lambda/bin/
+infra/lambda/*.dist-info/
+infra/lambda/six.py
+
 # Kubernetes
 *.kubeconfig
 
