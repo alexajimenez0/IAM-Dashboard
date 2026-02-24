@@ -45,6 +45,7 @@ jobs:
             const dryRunInput = (core.getInput("dry_run") || (isScheduled ? "false" : "true")).toLowerCase();
             const DRY_RUN = dryRunInput === "true";
 
+            const now = new Date();
             const estString = now.toLocaleString("en-US", {
                                                         timeZone: "America/New_York"
                                                       });
