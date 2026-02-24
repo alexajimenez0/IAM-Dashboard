@@ -45,10 +45,16 @@ jobs:
             const dryRunInput = (core.getInput("dry_run") || (isScheduled ? "false" : "true")).toLowerCase();
             const DRY_RUN = dryRunInput === "true";
 
-            const today = new Date();
+            const now = new Date();
+            const estString = now.toLocaleString("en-US", {
+                                                        timeZone: "America/New_York"
+                                                      });
+
+            const today = new Date(estString);
+            
             core.info(`Mode: ${DRY_RUN ? "DRY RUN" : "ENFORCE"}`);
 
-            // Detect current sprint
+            // Detect current sprint            
             const fieldData = await github.graphql(
               `
               query($org: String!, $number: Int!) {
@@ -76,10 +82,14 @@ jobs:
             );
 
             const sprintField = fieldData.organization.projectV2.fields.nodes.find(f => f.name === SPRINT_FIELD_NAME);
+            
             if (!sprintField) {
               core.setFailed(`Sprint field "${SPRINT_FIELD_NAME}" not found.`);
               return;
             }
+
+            core.info("Today:");
+            core.info(today);
 
             const iterations = sprintField.configuration.iterations;
             const currentSprint = iterations.find(iter => {
