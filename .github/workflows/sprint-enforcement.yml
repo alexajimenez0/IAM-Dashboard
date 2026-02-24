@@ -112,6 +112,9 @@ jobs:
               return;
             }
 
+            core.info("Today:");
+            core.info(today);
+
             const iterations = sprintField.configuration.iterations;
             const currentSprint = iterations.find(iter => {
               const start = new Date(iter.startDate + "T00:00:00Z");
