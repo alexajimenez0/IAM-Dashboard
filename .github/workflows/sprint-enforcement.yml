@@ -45,7 +45,12 @@ jobs:
             const dryRunInput = (core.getInput("dry_run") || (isScheduled ? "false" : "true")).toLowerCase();
             const DRY_RUN = dryRunInput === "true";
 
-            const today = new Date();
+            const estString = now.toLocaleString("en-US", {
+                                                        timeZone: "America/New_York"
+                                                      });
+
+            const today = new Date(estString);
+            
             core.info(`Mode: ${DRY_RUN ? "DRY RUN" : "ENFORCE"}`);
 
             // Detect current sprint
