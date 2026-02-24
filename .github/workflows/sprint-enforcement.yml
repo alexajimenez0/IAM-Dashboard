@@ -141,10 +141,10 @@ jobs:
             core.info(`Sprint day: ${sprintDay}`);
 
             // Day 3 only
-            if (sprintDay !== DAY_THRESHOLD) {
+            /*if (sprintDay !== DAY_THRESHOLD) {
               core.info("Not Day 3. Exiting.");
               return;
-            }
+            }*/
 
             // Fetch project items (first 100)
             const data = await github.graphql(
