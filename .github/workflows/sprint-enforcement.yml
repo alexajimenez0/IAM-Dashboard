@@ -54,31 +54,7 @@ jobs:
             
             core.info(`Mode: ${DRY_RUN ? "DRY RUN" : "ENFORCE"}`);
 
-            // Detect current sprint
-
-            const sprintQuery = `
-              query($org: String!, $number: Int!) {
-                organization(login: $org) {
-                  projectV2(number: $number) {
-                    fields(first: 50) {
-                      nodes {
-                        ... on ProjectV2IterationField {
-                          name
-                          configuration {
-                            iterations {
-                              title
-                              startDate
-                              duration
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-              `;
-            
+            // Detect current sprint            
             const fieldData = await github.graphql(
               `
               query($org: String!, $number: Int!) {
@@ -105,13 +81,7 @@ jobs:
               { org: ORG, number: PROJECT_NUMBER }
             );
 
-            core.info("GraphQL Query:");
-            core.info(sprintQuery);
-
             const sprintField = fieldData.organization.projectV2.fields.nodes.find(f => f.name === SPRINT_FIELD_NAME);
-
-            core.info("Raw GraphQL response:");
-            core.info(JSON.stringify(fieldData, null, 2));
             
             if (!sprintField) {
               core.setFailed(`Sprint field "${SPRINT_FIELD_NAME}" not found.`);
@@ -141,10 +111,10 @@ jobs:
             core.info(`Sprint day: ${sprintDay}`);
 
             // Day 3 only
-            /*if (sprintDay !== DAY_THRESHOLD) {
+            if (sprintDay !== DAY_THRESHOLD) {
               core.info("Not Day 3. Exiting.");
               return;
-            }*/
+            }
 
             // Fetch project items (first 100)
             const data = await github.graphql(
