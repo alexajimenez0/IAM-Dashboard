@@ -45,4 +45,47 @@ Keep PRs focused. Address review feedback promptly.
 
 ---
 
+## Undoing / Reverting a merged PR
+
+If a merged PR introduced a bug or needs to be rolled back, **do not force-push or rewrite history on `main`**. Instead, create a revert commit.
+
+### Option 1 — GitHub UI (easiest)
+
+1. Open the merged PR on GitHub.
+2. Scroll to the bottom and click **"Revert"**.
+3. GitHub creates a new branch (e.g. `revert-123-feature/your-thing`) with the inverse changes and opens a draft PR against `main`.
+4. Review the revert PR, get approval, and merge it like any other PR.
+
+### Option 2 — command line
+
+```bash
+# 1. Make sure main is up to date
+git checkout main
+git pull origin main
+
+# 2. Find the merge commit SHA for the PR you want to undo
+#    (visible on the PR page or in `git log --oneline`)
+git log --oneline -10
+
+# 3. Revert the merge commit
+#    -m 1 tells Git to keep the mainline (first parent) of the merge
+git revert -m 1 <merge-commit-sha>
+
+# 4. Resolve any conflicts if prompted, then commit
+git add .
+git commit   # the revert message is pre-filled
+
+# 5. Push to a new branch and open a PR
+git push -u origin revert/<original-pr-number>-<short-description>
+```
+
+> **Tip:** If the PR was a regular (non-merge) commit, omit `-m 1`.
+
+### After the revert
+
+- Reference the original PR and explain why it was reverted in the PR description (e.g. "Reverts #123 because of regression in X").
+- If the underlying issue is fixed later, open a new PR rather than reverting the revert — this keeps the history clearer.
+
+---
+
 By contributing, you agree your contributions are licensed under the project license (see repository).
