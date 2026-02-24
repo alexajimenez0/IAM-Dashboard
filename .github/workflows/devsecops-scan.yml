@@ -2,9 +2,9 @@ name: DevSecOps Security Scan
 
 on:
   pull_request:
-    branches: [ main, develop, "feature/devops/fix-ci-pipeline" ]
+    branches: [ main, develop ]
   push:
-    branches: [ main, develop, "feature/devops/fix-ci-pipeline" ]
+    branches: [ main, develop ]
   schedule:
     # Run security scans daily at 2 AM UTC
     - cron: '0 2 * * *'
