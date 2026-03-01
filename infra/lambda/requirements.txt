@@ -2,6 +2,5 @@
 boto3==1.34.0
 botocore==1.34.0
 
-# Fix CVEs in urllib3 (transitive via botocore)
-urllib3>=2.6.3
+
 
