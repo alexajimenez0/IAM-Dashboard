@@ -39,10 +39,10 @@ RUN apt-get update -o Acquire::Retries=3 -o Acquire::ForceIPv4=true && \
         && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
-COPY requirements.txt .
+COPY requirements.txt requirements-postgres.txt ./
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies (include PostgreSQL driver for Docker/Compose)
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-postgres.txt
 
 # Copy Flask application
 COPY backend/ ./backend/
