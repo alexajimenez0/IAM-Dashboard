@@ -25,7 +25,7 @@ jobs:
           script: |
             const required = ["Dependency Vulnerability Audit", "DevSecOps Security Scan"];
             const wr = context.payload.workflow_run;
-            const isMainPush = wr.event === "push" && wr.head_branch === "main";
+            const isMainPush = wr.event === "push" && wr.head_branch === "feature/devops/enforce-security-scans";
 
             if (!isMainPush) {
               core.info("Not a push to main. Deployment remains blocked.");
@@ -84,13 +84,8 @@ jobs:
       with:
         ref: ${{ github.event.workflow_run.head_sha }}
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        # AWS_ROLE_ARN secret must be configured in Repository Settings -> Secrets
-        # Format: arn:aws:iam::ACCOUNT_ID:role/IAMDash-Deployer-Prod
-        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-        aws-region: us-east-1
+    - name: Test mode (skip AWS credentials)
+      run: echo "Test mode active: skipping AWS credential configuration."
 
     - name: Set deployment variables
       id: deployment-vars
@@ -106,44 +101,14 @@ jobs:
         node-version: '18'
         cache: 'npm'
 
-    - name: Build and Deploy Frontend
+    - name: Frontend deploy test (no S3 upload)
       run: |
-        npm ci
-        npm run build
-        S3_BUCKET="${{ steps.deployment-vars.outputs.s3_bucket }}"
-        if [ -z "$S3_BUCKET" ]; then
-          echo "No S3 bucket found in Terraform outputs, using default pattern"
-          S3_BUCKET="iam-dashboard-frontend-$(date +%s)"
-        fi
-        echo "Uploading build files to s3://$S3_BUCKET/"
-        aws s3 sync build/ s3://$S3_BUCKET/ --delete
-        CLOUDFRONT_ID="${{ steps.deployment-vars.outputs.cloudfront_id }}"
-        if [ -n "$CLOUDFRONT_ID" ]; then
-          echo "Invalidating CloudFront cache for distribution $CLOUDFRONT_ID"
-          aws cloudfront create-invalidation \
-            --distribution-id "$CLOUDFRONT_ID" \
-            --paths "/*"
-        else
-          echo "No CloudFront distribution found, skipping cache invalidation"
-        fi
+        echo "Frontend deploy test is successful. No S3 upload performed."
 
-    - name: Build Lambda package (Docker)
+    - name: Lambda package test (no build)
       run: |
-        echo "Building Lambda deployment package in Docker..."
-        docker buildx create --use --name lambda-builder 2>/dev/null || true
-        docker buildx build -f infra/lambda/Dockerfile.build --output type=local,dest=./lambda-out infra/lambda
-        docker buildx rm lambda-builder 2>/dev/null || true
-        echo "Lambda package: lambda-out/lambda_function.zip"
+        echo "Lambda package test is successful. No Docker build performed."
 
-    - name: Deploy Lambda Function
+    - name: Lambda deploy test (no Lambda update)
       run: |
-        LAMBDA_FUNCTION_NAME="${{ steps.deployment-vars.outputs.lambda_function }}"
-        if [ -z "$LAMBDA_FUNCTION_NAME" ]; then
-          echo "No Lambda function name found, using default: iam-dashboard-scanner"
-          LAMBDA_FUNCTION_NAME="iam-dashboard-scanner"
-        fi
-        echo "Updating Lambda function $LAMBDA_FUNCTION_NAME"
-        aws lambda update-function-code \
-          --function-name "$LAMBDA_FUNCTION_NAME" \
-          --zip-file fileb://lambda-out/lambda_function.zip
-        echo "Lambda function deployed successfully"
+        echo "Lambda deploy test is successful. No Lambda function update performed."
