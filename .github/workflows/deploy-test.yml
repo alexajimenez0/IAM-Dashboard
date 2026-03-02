@@ -30,9 +30,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Test mode (skip AWS credentials)
-      run: |
-        echo "Test mode active: skipping AWS credential configuration."
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: us-east-1
 
     - name: Set deployment variables
       id: deployment-vars
@@ -48,14 +50,36 @@ jobs:
         node-version: '18'
         cache: 'npm'
 
-    - name: Frontend deploy test (no S3 upload)
+    - name: Build and Deploy Frontend (test mode)
       run: |
-        echo "Frontend deploy test is successful. No S3 upload performed."
+        npm ci
+        npm run build
+        S3_BUCKET="${{ steps.deployment-vars.outputs.s3_bucket }}"
+        if [ -z "$S3_BUCKET" ]; then
+          echo "No S3 bucket found in Terraform outputs, using default pattern"
+          S3_BUCKET="iam-dashboard-frontend-$(date +%s)"
+        fi
+        echo "This is a test. Skipping: aws s3 sync build/ s3://$S3_BUCKET/ --delete"
+        CLOUDFRONT_ID="${{ steps.deployment-vars.outputs.cloudfront_id }}"
+        if [ -n "$CLOUDFRONT_ID" ]; then
+          echo "This is a test. Skipping CloudFront invalidation for distribution $CLOUDFRONT_ID"
+        else
+          echo "No CloudFront distribution found, skipping cache invalidation"
+        fi
 
-    - name: Lambda package test (no build)
+    - name: Build Lambda package (Docker)
       run: |
-        echo "Lambda package test is successful. No Docker build performed."
+        echo "Building Lambda deployment package in Docker..."
+        docker buildx create --use --name lambda-builder 2>/dev/null || true
+        docker buildx build -f infra/lambda/Dockerfile.build --output type=local,dest=./lambda-out infra/lambda
+        docker buildx rm lambda-builder 2>/dev/null || true
+        echo "Lambda package: lambda-out/lambda_function.zip"
 
-    - name: Lambda deploy test (no Lambda update)
+    - name: Deploy Lambda Function (test mode)
       run: |
-        echo "Lambda deploy test is successful. No Lambda function update performed."
+        LAMBDA_FUNCTION_NAME="${{ steps.deployment-vars.outputs.lambda_function }}"
+        if [ -z "$LAMBDA_FUNCTION_NAME" ]; then
+          echo "No Lambda function name found, using default: iam-dashboard-scanner"
+          LAMBDA_FUNCTION_NAME="iam-dashboard-scanner"
+        fi
+        echo "This is a test. Skipping: aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --zip-file fileb://lambda-out/lambda_function.zip"
