@@ -1,13 +1,7 @@
-name: DevSecOps Security Scan
+name: DevSecOps Security Scan - TEST
 
 on:
-  pull_request:
-    branches: [ main, develop" ]
-  push:
-    branches: [ main, develop ]
-  schedule:
-    # Run security scans daily at 2 AM UTC
-    - cron: '0 2 * * *'
+  workflow_call:
 
 jobs:
   security-scan:
@@ -149,6 +143,5 @@ jobs:
         test -f k8s/README.md || (echo "❌ Missing k8s/README.md" && exit 1)
         
         echo "✅ DevSecOps structure is correct"
-
 
 

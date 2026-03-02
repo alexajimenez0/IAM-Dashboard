@@ -1,78 +1,25 @@
 name: Deploy IAM Dashboard Strict
 
 on:
-  workflow_run:
-    workflows:
-      - Dependency Vulnerability Audit
-      - Dependency Vulnerability Test Audit
-      - DevSecOps Security Scan
-    types:
-      - completed
+  push:
+    branches:
+      - feature/devops/enforce-security-scans
 
 jobs:
-  gate:
-    name: Gate on security workflows
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-    outputs:
-      ready: ${{ steps.evaluate.outputs.ready }}
-    steps:
-      - name: Evaluate security workflow results for this commit
-        id: evaluate
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const required = ["Dependency Vulnerability Audit", "DevSecOps Security Scan"];
-            const wr = context.payload.workflow_run;
-            const isMainPush = wr.event === "push" && wr.head_branch === "feature/devops/enforce-security-scans";
+  dependency-audit-test:
+    name: Dependency Vulnerability Audit - TEST
+    uses: ./.github/workflows/dependency-audit-test.yml
+    secrets: inherit
 
-            if (!isMainPush) {
-              core.info("Not a push to main. Deployment remains blocked.");
-              core.setOutput("ready", "false");
-              return;
-            }
-
-            const { owner, repo } = context.repo;
-            const headSha = wr.head_sha;
-            const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
-              owner,
-              repo,
-              head_sha: headSha,
-              event: "push",
-              per_page: 100
-            });
-
-            const latestByName = new Map();
-            for (const run of runs) {
-              if (!required.includes(run.name)) continue;
-              const prev = latestByName.get(run.name);
-              if (!prev || new Date(run.created_at) > new Date(prev.created_at)) {
-                latestByName.set(run.name, run);
-              }
-            }
-
-            const missing = required.filter((name) => !latestByName.has(name));
-            if (missing.length > 0) {
-              core.info(`Waiting for workflows to complete: ${missing.join(", ")}`);
-              core.setOutput("ready", "false");
-              return;
-            }
-
-            const failed = required.filter((name) => latestByName.get(name).conclusion !== "success");
-            if (failed.length > 0) {
-              core.warning(`Deployment blocked. Failed security workflows: ${failed.join(", ")}`);
-              core.setOutput("ready", "false");
-              return;
-            }
-
-            core.info(`All required security workflows passed for ${headSha}.`);
-            core.setOutput("ready", "true");
+  devsecops-scan-test:
+    name: DevSecOps Security Scan - TEST
+    uses: ./.github/workflows/devsecops-scan-test.yml
+    secrets: inherit
 
   deploy:
-    needs: gate
-    if: needs.gate.outputs.ready == 'true'
+    needs:
+      - dependency-audit-test
+      - devsecops-scan-test
     runs-on: ubuntu-latest
 
     permissions:
@@ -82,8 +29,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        ref: ${{ github.event.workflow_run.head_sha }}
 
     - name: Test mode (skip AWS credentials)
       run: |
