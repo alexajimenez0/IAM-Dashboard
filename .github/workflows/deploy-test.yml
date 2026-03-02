@@ -50,7 +50,7 @@ jobs:
         node-version: '18'
         cache: 'npm'
 
-    - name: Build and Deploy Frontend (test mode)
+    - name: Build and Deploy Frontend
       run: |
         npm ci
         npm run build
@@ -59,10 +59,14 @@ jobs:
           echo "No S3 bucket found in Terraform outputs, using default pattern"
           S3_BUCKET="iam-dashboard-frontend-$(date +%s)"
         fi
-        echo "This is a test. Skipping: aws s3 sync build/ s3://$S3_BUCKET/ --delete"
+        echo "Uploading build files to s3://$S3_BUCKET/"
+        aws s3 sync build/ s3://$S3_BUCKET/ --delete
         CLOUDFRONT_ID="${{ steps.deployment-vars.outputs.cloudfront_id }}"
         if [ -n "$CLOUDFRONT_ID" ]; then
-          echo "This is a test. Skipping CloudFront invalidation for distribution $CLOUDFRONT_ID"
+          echo "Invalidating CloudFront cache for distribution $CLOUDFRONT_ID"
+          aws cloudfront create-invalidation \
+            --distribution-id "$CLOUDFRONT_ID" \
+            --paths "/*"
         else
           echo "No CloudFront distribution found, skipping cache invalidation"
         fi
@@ -75,11 +79,15 @@ jobs:
         docker buildx rm lambda-builder 2>/dev/null || true
         echo "Lambda package: lambda-out/lambda_function.zip"
 
-    - name: Deploy Lambda Function (test mode)
+    - name: Deploy Lambda Function
       run: |
         LAMBDA_FUNCTION_NAME="${{ steps.deployment-vars.outputs.lambda_function }}"
         if [ -z "$LAMBDA_FUNCTION_NAME" ]; then
           echo "No Lambda function name found, using default: iam-dashboard-scanner"
           LAMBDA_FUNCTION_NAME="iam-dashboard-scanner"
         fi
-        echo "This is a test. Skipping: aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --zip-file fileb://lambda-out/lambda_function.zip"
+        echo "Updating Lambda function $LAMBDA_FUNCTION_NAME"
+        aws lambda update-function-code \
+          --function-name "$LAMBDA_FUNCTION_NAME" \
+          --zip-file fileb://lambda-out/lambda_function.zip
+        echo "Lambda function deployed successfully"
