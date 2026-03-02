@@ -43,7 +43,7 @@ skip-check:
   - CKV_AWS_18  # Forces a bucket to have access logging enabled. This is a good security improvement but would require architecture changes. Might add in the future.   
   - CKV_AWS_355 # Does not allow * for statement resource. Skipping because the GitHub user needs admin privileges
   - CKV_AWS_290 # Does not allow write access without constraints
-  - CKV2_AWS_40 # Does not allow of for full IAM privileges
+   # Does not allow of for full IAM privileges
 
 # Optional: keep summary at top
 summary-position: top
