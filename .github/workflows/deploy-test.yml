@@ -4,6 +4,7 @@ on:
   workflow_run:
     workflows:
       - Dependency Vulnerability Audit
+      - Dependency Vulnerability Test Audit
       - DevSecOps Security Scan
     types:
       - completed
