@@ -85,7 +85,8 @@ jobs:
         ref: ${{ github.event.workflow_run.head_sha }}
 
     - name: Test mode (skip AWS credentials)
-      run: echo "Test mode active: skipping AWS credential configuration."
+      run: |
+        echo "Test mode active: skipping AWS credential configuration."
 
     - name: Set deployment variables
       id: deployment-vars
