@@ -3,10 +3,10 @@ name: Deploy IAM Dashboard
 on:
   push:
     branches:
-      - "feature/devops/enforce-security-scans"
+      - feature/devops/enforce-security-scans
   pull_request:
     branches:
-      - "feature/devops/enforce-security-scans"
+      - feature/devops/enforce-security-scans
 
 jobs:
   dependency-audit-test:
