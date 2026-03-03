@@ -9,21 +9,21 @@ on:
       - feature/devops/enforce-security-scans
 
 jobs:
-  dependency-audit-test:
+  dependency-audit:
     name: Dependency Vulnerability Audit
-    uses: ./.github/workflows/dependency-audit-test.yml
+    uses: ./.github/workflows/dependency-audit.yml
     secrets: inherit
 
-  devsecops-scan-test:
+  devsecops-scan:
     name: DevSecOps Security Scan
-    uses: ./.github/workflows/devsecops-scan-test.yml
+    uses: ./.github/workflows/devsecops-scan.yml
     secrets: inherit
 
   deploy:
     if: github.event_name == 'push' && github.ref_name == 'feature/devops/enforce-security-scans'
     needs:
-      - dependency-audit-test
-      - devsecops-scan-test
+      - dependency-audit
+      - devsecops-scan
     runs-on: ubuntu-latest
 
     permissions:
