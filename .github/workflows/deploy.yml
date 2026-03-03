@@ -3,10 +3,10 @@ name: Deploy IAM Dashboard
 on:
   push:
     branches:
-      - feature/devops/enforce-security-scans
+      - main
   pull_request:
     branches:
-      - feature/devops/enforce-security-scans
+      - main
 
 jobs:
   dependency-audit:
@@ -20,7 +20,7 @@ jobs:
     secrets: inherit
 
   deploy:
-    if: github.event_name == 'push' && github.ref_name == 'feature/devops/enforce-security-scans'
+    if: github.event_name == 'push' && github.ref_name == 'main'
     needs:
       - dependency-audit
       - devsecops-scan
