@@ -6,7 +6,7 @@
    "finding_details": {
      "finding_id": "string",
      "finding_type": "string", 
-     "severity": "string",
+     "severity": ["Critical", "High", "Medium", "Low"],
      "scanner_source": "string",
      "resource": {
        "resource_type": "string",
