@@ -50,6 +50,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "frontend" {
   rule {
     id     = "default-lifecycle"
     status = "Enabled"
+    
+    # Empty filter applies this lifecycle rule to all objects (equivalent to empty prefix).
+    filter {}
 
     abort_incomplete_multipart_upload {
       days_after_initiation = 7
