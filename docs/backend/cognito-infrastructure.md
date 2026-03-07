@@ -79,13 +79,13 @@ These must match the **Allowed callback URLs** and **Allowed sign-out URLs** in 
 
 ```mermaid
 flowchart LR
-  user[User in browser] --> spa[React SPA (Vite)]
-  spa -->|"signinRedirect()"| cognitoHostedUI[Cognito Hosted UI]
-  cognitoHostedUI -->|"redirect with code"| spaCallback[SPA at redirect_uri]
-  spaCallback -->|"code -> tokens via OIDC lib"| spaTokens[SPA stores ID/Access/Refresh tokens]
-  spaTokens -->|"Authorization: Bearer <access_token>"| apiGateway[API Gateway / Flask backend]
-  apiGateway --> jwtValidation[JWT validation using Cognito JWKS]
-  jwtValidation --> awsServices[AWS services (IAM, Security Hub, DynamoDB, S3)]
+  A[User] --> B[React SPA]
+  B --> C[Cognito Hosted UI]
+  C --> D[SPA callback]
+  D --> E[Tokens]
+  E --> F[API Gateway]
+  F --> G[JWT validation]
+  G --> H[AWS services]
 ```
 
 ---
