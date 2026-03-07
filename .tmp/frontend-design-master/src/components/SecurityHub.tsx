@@ -83,7 +83,7 @@ const mockFindings: SecurityHubFinding[] = [
     status: 'NOTIFIED',
     product_name: 'Config',
     resource_type: 'AwsIamAccessKey',
-    resource_id: 'AKIAIOSFODNN7EXAMPLE',
+    resource_id: '*******EXAMPLE',
     region: 'us-east-1',
     created_at: '2024-01-10T09:15:00Z',
     updated_at: '2024-01-13T16:45:00Z',
