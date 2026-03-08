@@ -27,7 +27,7 @@ data "aws_caller_identity" "current" {}
 
 # Shared KMS key for encryption
 resource "aws_kms_key" "logs" {
-  description             = "KMS key for encrypting CloudWatch Log Groups (IAM Dashboard)"
+  description             = "KMS key for encrypting resources like CloudWatch and DynamoDB (IAM Dashboard)"
   deletion_window_in_days = 30
   enable_key_rotation     = true
   policy = jsonencode({
