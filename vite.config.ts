@@ -1,11 +1,11 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react-swc';
+import path from 'path';
 
-  import { defineConfig } from 'vite';
-  import react from '@vitejs/plugin-react-swc';
-import tailwindcss from '@tailwindcss/vite';
-  import path from 'path';
-
-  export default defineConfig({
-  plugins: [react(), tailwindcss()],
+export default defineConfig(async () => {
+  const { default: tailwindcss } = await import('@tailwindcss/vite');
+  return {
+    plugins: [react(), tailwindcss()],
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
@@ -62,4 +62,5 @@ import tailwindcss from '@tailwindcss/vite';
       },
       open: false,
     },
-  });
+  };
+});
