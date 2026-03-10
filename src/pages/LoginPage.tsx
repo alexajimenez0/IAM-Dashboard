@@ -2,8 +2,7 @@ import { Shield, Github, Mail, ArrowLeft, Lock, Eye, EyeOff } from "lucide-react
 import { motion } from "motion/react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-const logoImage = "/assets/logo.png";
+import logoImage from "@/assets/logo.png";
 
 export function LoginPage() {
   const navigate = useNavigate();

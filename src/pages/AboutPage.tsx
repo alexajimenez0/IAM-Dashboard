@@ -3,8 +3,7 @@ import { motion } from "motion/react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatedBackground } from "../components/AnimatedBackground";
-
-const teamPhoto = "/assets/team-photo.png";
+import teamPhoto from "@/assets/team-photo.png";
 
 export function AboutPage() {
   const navigate = useNavigate();

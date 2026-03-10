@@ -119,6 +119,7 @@ public
 
 # Temporary folders
 tmp/
+.tmp/
 temp/
 
 # Database

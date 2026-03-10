@@ -18,10 +18,10 @@ import {
 import { motion } from "motion/react";
 import { AnimatedBackground } from "../components/AnimatedBackground";
 import { useNavigate } from "react-router-dom";
+import logoImage from "@/assets/logo.png";
+import dashboardMockup from "@/assets/dashboard-mockup.png";
 
 export function LandingPage() {
-  const logoImage = "/assets/logo.png";
-  const dashboardMockup = "/assets/dashboard-mockup.png";
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
 
