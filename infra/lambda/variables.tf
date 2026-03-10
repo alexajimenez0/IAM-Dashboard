@@ -82,7 +82,7 @@ variable "enable_xray_tracing" {
 variable "lambda_reserved_concurrency" {
   description = "Reserved concurrency limit for the Lambda function to control scaling/cost"
   type        = number
-  default     = 10
+  default     = 11
 }
 
 variable "dynamodb_table_name" {
