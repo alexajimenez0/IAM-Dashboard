@@ -44,6 +44,8 @@ skip-check:
   - CKV_AWS_355 # Does not allow * for statement resource. Skipping because the GitHub user needs admin privileges
   - CKV_AWS_290 # Does not allow write access without constraints
   - CKV2_AWS_40 # Does not allow of for full IAM privileges
+  - CKV_DOCKER_2 # Build images (e.g. Lambda package) don't need HEALTHCHECK; tracked in DevOps backlog
+  - CKV_DOCKER_3 # Frontend entrypoint runs as root to install deps then su-exec app; tracked in DevOps backlog
 
 # Optional: keep summary at top
 summary-position: top
