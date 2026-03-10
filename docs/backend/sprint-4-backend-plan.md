@@ -1,22 +1,3 @@
----
-name: auth-and-data-backend-milestones
-overview: Plan for implementing backend milestones B10 (JWT validation), B13 (unified findings schema), B14b (latest scans API), and B18 (metrics endpoint) in a way that is understandable and achievable for a student team.
-todos:
-  - id: b10-jwt-authorizer
-    content: Add Cognito-based JWT authorizer in API Gateway and protect all scan/latest-scan routes
-    status: pending
-  - id: b13-unified-schema
-    content: Design and implement unified findings schema in Lambda + DynamoDB and document it
-    status: pending
-  - id: b14b-latest-scan-api
-    content: Create GET /api/latest-scan endpoint using unified schema and integrate with frontend
-    status: pending
-  - id: b18-metrics-endpoint
-    content: Expose /metrics endpoint for Prometheus and add basic scan metrics
-    status: pending
-isProject: false
----
-
 # Backend Auth & Data Milestones (B10, B13, B14b, B18)
 
 This plan explains, in beginner-friendly language, how to deliver four key backend milestones:
