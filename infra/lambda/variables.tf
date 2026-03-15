@@ -82,7 +82,11 @@ variable "enable_xray_tracing" {
 variable "lambda_reserved_concurrency" {
   description = "Reserved concurrency limit for the Lambda function to control scaling/cost"
   type        = number
-  default     = 5
+  default     = null
+  validation {
+    condition     = var.lambda_reserved_concurrency == null || var.lambda_reserved_concurrency >= 1
+    error_message = "lambda_reserved_concurrency must be null or a number greater than or equal to 1."
+  }
 }
 
 variable "dynamodb_table_name" {
@@ -96,4 +100,3 @@ variable "s3_bucket_name" {
   type        = string
   default     = "iam-dashboard-project"
 }
-
