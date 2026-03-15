@@ -17,7 +17,7 @@ variable "project_name" {
 }
 
 variable "github_actions_role_name" {
-  description = "Name of the IAM role for GitHub Actions"
+  description = "Name of the IAM role for GitHub Actions (must match existing role if importing)"
   type        = string
   default     = "iam-dashboard-deployer-prod"
 }

@@ -33,6 +33,9 @@ resource "aws_s3_bucket_versioning" "frontend" {
 }
 
 # S3 bucket server-side encryption
+# NOTE: This bucket serves a public static website via the S3 website endpoint.
+# Using SSE-S3 (AES256) avoids requiring KMS Decrypt for anonymous users, which
+# would break public access. Use KMS on non-public buckets instead.
 resource "aws_s3_bucket_server_side_encryption_configuration" "frontend" {
   bucket = aws_s3_bucket.frontend.id
 
@@ -50,8 +53,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "frontend" {
     id     = "default-lifecycle"
     status = "Enabled"
 
-    # Empty filter applies this lifecycle rule to all objects (equivalent to empty prefix).
-    filter {}
+    filter {} # required: apply to whole bucket
 
     abort_incomplete_multipart_upload {
       days_after_initiation = 7
