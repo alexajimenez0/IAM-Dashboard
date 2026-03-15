@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.14.7"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -50,8 +50,8 @@ module "dynamodb" {
   environment                   = var.environment
   project_name                  = var.project_name
   dynamodb_table_name           = var.dynamodb_table_name
-  enable_point_in_time_recovery = true
   dynamodb_kms_key_arn          = data.aws_kms_key.logs.arn
+  enable_point_in_time_recovery = true
 }
 
 # Lambda Module
@@ -71,10 +71,10 @@ module "lambda" {
 module "api_gateway" {
   source = "./api-gateway"
 
-  aws_region      = var.aws_region
-  environment     = var.environment
-  project_name    = var.project_name
-  log_kms_key_arn = data.aws_kms_key.logs.arn
+  aws_region     = var.aws_region
+  environment    = var.environment
+  project_name   = var.project_name
+  kms_key_arn    = data.aws_kms_key.logs.arn
 }
 
 # GitHub Actions OIDC Module
@@ -91,4 +91,3 @@ module "github_actions" {
   lambda_function_name        = var.lambda_function_name
   dynamodb_table_name         = var.dynamodb_table_name
 }
-
