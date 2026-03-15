@@ -71,10 +71,10 @@ module "lambda" {
 module "api_gateway" {
   source = "./api-gateway"
 
-  aws_region     = var.aws_region
-  environment    = var.environment
-  project_name   = var.project_name
-  kms_key_arn    = data.aws_kms_key.logs.arn
+  aws_region   = var.aws_region
+  environment  = var.environment
+  project_name = var.project_name
+  kms_key_arn  = data.aws_kms_key.logs.arn
 }
 
 # GitHub Actions OIDC Module
