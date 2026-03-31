@@ -13,6 +13,9 @@ import React, {
   ReactNode,
 } from 'react';
 import type { ScanResponse } from '../services/api';
+import { getMockResponse } from '../mock/apiMock';
+
+const DATA_MODE = (import.meta.env.VITE_DATA_MODE || 'live').toLowerCase();
 
 /** Keep in sync with first mock account id in AwsAccountContext (v1 storage migration). */
 const V1_MIGRATION_ACCOUNT_KEY = 'mock-prod';
@@ -63,6 +66,7 @@ const ScanResultsContext = createContext<ScanResultsContextType | undefined>(
 );
 
 function loadFromStorage(): Map<string, Map<string, StoredScanResult>> {
+  if (DATA_MODE === 'mock') return new Map();
   try {
     const v2raw = sessionStorage.getItem(STORAGE_V2_KEY);
     if (v2raw) {
@@ -92,6 +96,7 @@ function loadFromStorage(): Map<string, Map<string, StoredScanResult>> {
 }
 
 function saveToStorage(byAccount: Map<string, Map<string, StoredScanResult>>) {
+  if (DATA_MODE === 'mock') return;
   try {
     const obj: Record<string, [string, StoredScanResult][]> = {};
     for (const [acc, inner] of byAccount) {
@@ -229,11 +234,20 @@ function extractScanSummary(results: any): StoredScanResult['scan_summary'] {
   if (!results) return undefined;
 
   if (results.scan_type === 'full' || results.iam) {
+    if (results.aggregate_summary) {
+      return {
+        ...results.aggregate_summary,
+        users: results.iam?.users?.total || 0,
+        roles: results.iam?.roles?.total || 0,
+        policies: results.iam?.policies?.total || 0,
+        groups: results.iam?.groups?.total || 0,
+      };
+    }
     return {
-      critical_findings: results.iam?.scan_summary?.critical_findings || 0,
-      high_findings: results.iam?.scan_summary?.high_findings || 0,
-      medium_findings: results.iam?.scan_summary?.medium_findings || 0,
-      low_findings: results.iam?.scan_summary?.low_findings || 0,
+      critical_findings: (results.iam?.scan_summary?.critical_findings || 0) + (results.ec2?.scan_summary?.critical_findings || 0) + (results.s3?.scan_summary?.critical_findings || 0),
+      high_findings: (results.iam?.scan_summary?.high_findings || 0) + (results.ec2?.scan_summary?.high_findings || 0) + (results.s3?.scan_summary?.high_findings || 0),
+      medium_findings: (results.iam?.scan_summary?.medium_findings || 0) + (results.ec2?.scan_summary?.medium_findings || 0) + (results.s3?.scan_summary?.medium_findings || 0),
+      low_findings: (results.iam?.scan_summary?.low_findings || 0) + (results.ec2?.scan_summary?.low_findings || 0) + (results.s3?.scan_summary?.low_findings || 0),
       users: results.iam?.users?.total || 0,
       roles: results.iam?.roles?.total || 0,
       policies: results.iam?.policies?.total || 0,
@@ -297,10 +311,12 @@ function extractScanSummary(results: any): StoredScanResult['scan_summary'] {
 
 function extractFindings(results: any): any[] {
   if (!results) return [];
-
   if (results.scan_type === 'full' || results.iam) {
     const allFindings: any[] = [];
-    if (results.iam?.findings) allFindings.push(...results.iam.findings);
+    if (Array.isArray(results.iam?.findings)) allFindings.push(...results.iam.findings);
+    if (Array.isArray(results.ec2?.findings)) allFindings.push(...results.ec2.findings);
+    if (Array.isArray(results.s3?.findings)) allFindings.push(...results.s3.findings);
+    if (Array.isArray(results.security_hub?.findings)) allFindings.push(...results.security_hub.findings);
     if (allFindings.length > 0) {
       return allFindings;
     }

@@ -4,7 +4,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "./ui/select";
 import { useAwsAccount } from "../context/AwsAccountContext";
 
@@ -16,15 +15,21 @@ function maskAccountId(accountId: string): string {
   return accountId;
 }
 
-export function AwsAccountSwitcher() {
+interface AwsAccountSwitcherProps {
+  compact?: boolean;
+}
+
+export function AwsAccountSwitcher({ compact = false }: AwsAccountSwitcherProps) {
   const { accounts, selectedAccount, selectAccount } = useAwsAccount();
 
   if (accounts.length === 0) {
     return (
-      <div className="flex min-w-0 max-w-[260px] flex-col gap-0.5">
-        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          AWS account
-        </span>
+      <div className={`flex min-w-0 max-w-[260px] ${compact ? "items-center" : "flex-col gap-0.5"}`}>
+        {!compact && (
+          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            AWS account
+          </span>
+        )}
         <div
           className="flex h-9 items-center rounded-md border border-dashed border-border/80 bg-muted/30 px-3 text-sm text-muted-foreground"
           title="Connect AWS accounts in your organization to see them here."
@@ -41,10 +46,12 @@ export function AwsAccountSwitcher() {
     : [];
 
   return (
-    <div className="flex min-w-0 max-w-[280px] flex-col gap-0.5">
-      <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        AWS account
-      </span>
+    <div className={`flex min-w-0 max-w-[280px] ${compact ? "items-center" : "flex-col gap-0.5"}`}>
+      {!compact && (
+        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          AWS account
+        </span>
+      )}
       <Select
         value={selectedAccount?.id ?? undefined}
         onValueChange={selectAccount}
@@ -57,7 +64,9 @@ export function AwsAccountSwitcher() {
         >
           <Cloud className="size-4 shrink-0 text-primary" />
           <div className="flex min-w-0 flex-1 flex-col items-start gap-0 text-left">
-            <SelectValue placeholder="Select account" />
+            <span className="w-full truncate text-sm font-medium leading-tight">
+              {selectedAccount?.label ?? "Select account"}
+            </span>
             <span className="w-full truncate text-[11px] font-normal leading-tight text-muted-foreground">
               {selectedAccount
                 ? maskAccountId(selectedAccount.accountId)
