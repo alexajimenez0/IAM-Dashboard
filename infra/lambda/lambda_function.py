@@ -7,9 +7,11 @@ import json
 import os
 import logging
 import boto3
+import time
 from datetime import datetime
+from http import cookies
 from typing import Dict, Any, Optional
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 from decimal import Decimal
 
 # Configure logging
@@ -106,6 +108,21 @@ DYNAMODB_TABLE_NAME = os.environ.get('DYNAMODB_TABLE_NAME', 'iam-dashboard-scan-
 S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', 'iam-dashboard-project')
 PROJECT_NAME = os.environ.get('PROJECT_NAME', 'IAMDash')
 ENVIRONMENT = os.environ.get('ENVIRONMENT', 'dev')
+COOKIE_NAME = 'iamdash_session'
+SESSION_TABLE_NAME = os.environ.get('SESSION_TABLE_NAME', 'iam-dashboard-auth-sessions-test')
+AUTHORIZED_GROUPS = {'admin', 'analyst'}
+
+
+class UnauthorizedError(Exception):
+    """Raised when the request does not have a valid authenticated session."""
+
+
+class ForbiddenError(Exception):
+    """Raised when the authenticated session lacks required groups."""
+
+
+class SessionStoreError(Exception):
+    """Raised when session storage cannot be read safely."""
 
 
 def publish_metric(metric_name: str, value: float, dimensions: Dict[str, str] = None):
@@ -141,6 +158,103 @@ def json_serial(obj):
         return None
 
 
+def parse_request_cookies(event: Dict[str, Any]) -> Dict[str, str]:
+    """Extract request cookies from both HTTP API and header-based formats."""
+    parsed: Dict[str, str] = {}
+
+    for raw_cookie in event.get('cookies') or []:
+        morsel = cookies.SimpleCookie()
+        morsel.load(raw_cookie)
+        for key, value in morsel.items():
+            parsed[key] = value.value
+
+    headers = event.get('headers') or {}
+    cookie_header = headers.get('cookie') or headers.get('Cookie')
+    if cookie_header:
+        morsel = cookies.SimpleCookie()
+        morsel.load(cookie_header)
+        for key, value in morsel.items():
+            parsed[key] = value.value
+
+    return parsed
+
+
+def get_session_table():
+    """Resolve the DynamoDB session table from the configured environment."""
+    table_name = SESSION_TABLE_NAME
+    return dynamodb.Table(table_name)
+
+
+def delete_session(session_id: str) -> None:
+    """Delete a session record from DynamoDB."""
+    try:
+        get_session_table().delete_item(Key={'session_id': session_id})
+    except (ClientError, BotoCoreError) as exc:
+        logger.exception('Failed to delete expired session_id=%s', session_id)
+        raise SessionStoreError('Unable to process request.') from exc
+
+
+def normalize_groups(groups: Any) -> list[str]:
+    """Normalize session groups into a list of strings."""
+    if isinstance(groups, str):
+        groups = [groups]
+    if not isinstance(groups, list):
+        return []
+    return [str(group) for group in groups if str(group).strip()]
+
+
+def get_session(session_id: str) -> Optional[Dict[str, Any]]:
+    """Load a session record and treat expired data as invalid."""
+    try:
+        result = get_session_table().get_item(Key={'session_id': session_id})
+    except (ClientError, BotoCoreError) as exc:
+        logger.exception('Failed to read session_id=%s', session_id)
+        raise SessionStoreError('Unable to process request.') from exc
+
+    item = result.get('Item')
+    if not item:
+        return None
+
+    try:
+        expires_at = int(item.get('expires_at', 0))
+    except (TypeError, ValueError):
+        expires_at = 0
+
+    if expires_at <= int(time.time()):
+        try:
+            delete_session(session_id)
+        except SessionStoreError:
+            logger.warning('Failed to delete expired session_id=%s', session_id)
+        return None
+
+    item['groups'] = normalize_groups(item.get('groups'))
+    return item
+
+
+def get_request_session(event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Resolve the current request session from the opaque auth cookie."""
+    request_cookies = parse_request_cookies(event)
+    session_id = request_cookies.get(COOKIE_NAME)
+    if not session_id:
+        return None
+    return get_session(session_id)
+
+
+def require_authenticated_session(event: Dict[str, Any]) -> Dict[str, Any]:
+    """Require a valid authenticated session for HTTP-triggered scans."""
+    session = get_request_session(event)
+    if not session:
+        raise UnauthorizedError('Authentication required.')
+    return session
+
+
+def require_groups(session: Dict[str, Any], allowed_groups: set[str]) -> None:
+    """Require that the authenticated session contains at least one allowed group."""
+    groups = set(normalize_groups(session.get('groups')))
+    if groups.isdisjoint(allowed_groups):
+        raise ForbiddenError('Forbidden.')
+
+
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Main Lambda handler for security scanning
@@ -168,8 +282,10 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         logger.info(f"Received event: {json.dumps(event)}")
         
+        is_http_request = 'httpMethod' in event or 'requestContext' in event
+
         # Parse event (API Gateway or direct invocation)
-        if 'httpMethod' in event or 'requestContext' in event:
+        if is_http_request:
             # API Gateway event (v1 REST or v2 HTTP)
             # Extract scanner type from path
             path = event.get('path') or event.get('requestContext', {}).get('http', {}).get('path', '')
@@ -203,6 +319,10 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return create_response(400, {
                 'error': f'Invalid scanner type. Must be one of: {", ".join(valid_scanners)}'
             })
+
+        if is_http_request:
+            session = require_authenticated_session(event)
+            require_groups(session, AUTHORIZED_GROUPS)
         
         # Execute scan
         scan_id = f"{scanner_type}-{datetime.utcnow().isoformat()}"
@@ -352,6 +472,12 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'timestamp': datetime.utcnow().isoformat()
         })
         
+    except UnauthorizedError:
+        return create_response(401, {'error': 'Authentication required'})
+    except ForbiddenError:
+        return create_response(403, {'error': 'Forbidden'})
+    except SessionStoreError:
+        return create_response(500, {'error': 'Unable to process request'})
     except Exception as e:
         logger.error(f"Error in lambda_handler: {str(e)}", exc_info=True)
         return create_response(500, {

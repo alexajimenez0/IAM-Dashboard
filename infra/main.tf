@@ -83,6 +83,7 @@ module "lambda" {
   project_name         = var.project_name
   lambda_function_name = var.lambda_function_name
   dynamodb_table_name  = var.dynamodb_table_name
+  session_table_name   = module.auth_dynamodb.dynamodb_table_name
   s3_bucket_name       = var.s3_bucket_name
   lambda_kms_key_arn   = data.aws_kms_key.logs.arn
 }
