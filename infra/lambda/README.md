@@ -132,6 +132,37 @@ The Lambda function supports the following scanner types:
 }
 ```
 
+## 🔐 Authentication and RBAC
+
+### Session Authentication
+
+HTTP-triggered invocations (via API Gateway) require a valid session cookie named `iamdash_session`.
+The Lambda reads this cookie from the request and looks up the session record in the DynamoDB table
+configured by `SESSION_TABLE_NAME`. Missing or expired sessions are rejected with a **401 Unauthorized**.
+
+Direct Lambda invocations (not via API Gateway) bypass session auth entirely.
+
+### Group-Based RBAC
+
+Authenticated requests are checked against the `groups` field stored in the session record.
+Each Cognito group maps to a permitted scanner type:
+
+| Group | Permitted scanner type |
+|---|---|
+| `admin` | All scanner types, including `full` |
+| `iam` | `iam` |
+| `ec2` | `ec2` |
+| `s3` | `s3` |
+| `securityhub` | `security-hub` |
+| `guardduty` | `guardduty` |
+| `config` | `config` |
+| `inspector` | `inspector` |
+| `macie` | `macie` |
+
+- Users in multiple groups can run all their permitted scanner types.
+- Users with no matching group receive a **403 Forbidden**.
+- Only `admin` can run the `full` scan.
+
 ## 🏷️ Tags
 
 The Lambda function is tagged with:

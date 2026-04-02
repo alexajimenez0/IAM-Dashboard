@@ -15,11 +15,11 @@ infra/
 ├── bootstrap/       # One-time: S3 state bucket + DynamoDB lock table (run before main)
 ├── s3/              # S3 bucket for static hosting and scan results and terraform state file
 ├── dynamodb/        # DynamoDB table for storing scan results and terraform state locking
-|__ DynamoDB_Auth/   # DynamoDB table for storing session cookies from user authentication
+├── DynamoDB_Auth/   # DynamoDB table for storing session cookies from user authentication
 ├── lambda/          # Lambda function and IAM role for security scanning
 ├── api-gateway/     # API Gateway HTTP API creates the 12 endpoints used for auth + scans
-|__ cognito/         # User pool, app client, and cognito domain for authentication
-|__cloudfront/       # CloudFront CDN for secure https transportation and caching         
+├── cognito/         # User pool, app client, and cognito domain for authentication
+├── cloudfront/       # CloudFront CDN for secure https transportation and caching         
 └── README.md        # This file
 ```
 
