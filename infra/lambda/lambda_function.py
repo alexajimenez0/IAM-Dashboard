@@ -110,7 +110,17 @@ PROJECT_NAME = os.environ.get('PROJECT_NAME', 'IAMDash')
 ENVIRONMENT = os.environ.get('ENVIRONMENT', 'dev')
 COOKIE_NAME = 'iamdash_session'
 SESSION_TABLE_NAME = os.environ.get('SESSION_TABLE_NAME', 'iam-dashboard-auth-sessions-test')
-AUTHORIZED_GROUPS = {'admin', 'analyst'}
+SCANNER_GROUP_MAP = {
+    'admin':       None,  # admin is handled separately — allowed all non-full types
+    'iam':         'iam',
+    'ec2':         'ec2',
+    's3':          's3',
+    'securityhub': 'security-hub',
+    'guardduty':   'guardduty',
+    'config':      'config',
+    'inspector':   'inspector',
+    'macie':       'macie',
+}
 
 
 class UnauthorizedError(Exception):
@@ -248,11 +258,20 @@ def require_authenticated_session(event: Dict[str, Any]) -> Dict[str, Any]:
     return session
 
 
-def require_groups(session: Dict[str, Any], allowed_groups: set[str]) -> None:
-    """Require that the authenticated session contains at least one allowed group."""
+def require_groups(session: Dict[str, Any], scanner_type: str) -> None:
+    """Require that the authenticated session has a group permitted to run scanner_type."""
     groups = set(normalize_groups(session.get('groups')))
-    if groups.isdisjoint(allowed_groups):
+    if 'admin' in groups:
+        return
+    if scanner_type == 'full': # Only admins can run full scans
         raise ForbiddenError('Forbidden.')
+    
+    lookup = 'securityhub' if scanner_type == 'security-hub' else scanner_type
+    if any(SCANNER_GROUP_MAP.get(g) == scanner_type or
+           (g == 'securityhub' and lookup == 'securityhub')
+           for g in groups):
+        return
+    raise ForbiddenError('Forbidden.')
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -322,7 +341,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         if is_http_request:
             session = require_authenticated_session(event)
-            require_groups(session, AUTHORIZED_GROUPS)
+            require_groups(session, scanner_type)
         
         # Execute scan
         scan_id = f"{scanner_type}-{datetime.utcnow().isoformat()}"
