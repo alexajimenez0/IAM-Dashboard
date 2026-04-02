@@ -207,6 +207,7 @@ temp.txt
 temp.md
 RBAC_Planning.json
 RBAC_Implementing.json
+auth-cookies.txt
 
 # Merge / patch artifacts
 *.orig
