@@ -28,7 +28,7 @@ The Lambda role (`iam-dashboard-lambda-role`) has permissions for:
 
 - **CloudWatch Logs**: Create log groups/streams, write logs
 - **S3**: PutObject, GetObject, ListBucket on `iam-dashboard-project` and `iam-dashboard-scan-results-*`
-- **DynamoDB**: PutItem, GetItem, UpdateItem, Query, DeleteItem Scan on `iam-dashboard-*` tables
+- **DynamoDB**: PutItem, GetItem, UpdateItem, Query, DeleteItem, Scan on `iam-dashboard-*` tables
 - **AWS Security Services**: Full permissions for security scanning
   - Security Hub: GetFindings, BatchImportFindings, GetInsights, GetComplianceSummary
   - GuardDuty: ListDetectors, GetDetector, ListFindings, GetFindings, DescribeFindings

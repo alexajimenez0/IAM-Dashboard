@@ -36,7 +36,7 @@ infra/
 - **Purpose**: Store security scan results from AWS scanners and OPA policies
 - **Schema**: Partition key `scanner_type`, Sort key `scan_id`
 
-### DyanamoDB (`infra/DynamoDB_Auth`)
+### DynamoDB (`infra/DynamoDB_Auth`)
 - **Table**: `iam-dashboard-auth-sessions-test`
 - **Purpose**: Store session cookies when users authenticate
 - **Schema**: Partition key `session_id`, index, `username`
