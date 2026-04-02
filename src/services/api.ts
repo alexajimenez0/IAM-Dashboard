@@ -12,7 +12,7 @@ import { getMockResponse } from "../mock/apiMock";
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
   import.meta.env.VITE_API_GATEWAY_URL ||
-  'https://erh3a09d7l.execute-api.us-east-1.amazonaws.com/v1';
+  'https://a99o55140b.execute-api.us-east-1.amazonaws.com/';
 
 const DATA_MODE = (import.meta.env.VITE_DATA_MODE || "live").toLowerCase();
 
