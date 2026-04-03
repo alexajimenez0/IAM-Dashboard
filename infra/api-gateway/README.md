@@ -44,7 +44,7 @@ terraform apply
 ```
 ## 🔧 Current Configuration
 
-- **API Name**: `iam-dashboard-combined-api`
+- **API Name**: `iam-dashboard-api`
 - **Protocol**: HTTP API (v2)
 - **Stage**: `v1`
 - **CORS**: Enabled with configurable origins
@@ -89,7 +89,7 @@ variable "cors_allowed_origins" {
 ## 🏷️ Tags
 
 The API Gateway is tagged with:
-- `Name = iam-dashboard-combined-api`
+- `Name = iam-dashboard-api`
 - `Project = IAMDash`
 - `Env = dev` (or from variable)
 - `ManagedBy = terraform`
