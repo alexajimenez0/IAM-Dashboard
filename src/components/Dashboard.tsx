@@ -616,7 +616,11 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       if (msg.toLowerCase().includes('forbidden') || msg.toLowerCase().includes('permissions')) {
-        toast.error('Permission denied', { description: msg });
+        toast.error('Permission denied', {
+          description: msg,
+          duration: 8000,
+          style: { color: '#ff0040', borderColor: 'rgba(255,0,64,0.4)' },
+        });
         setIsScanning(false);
         setScanProgress(0);
         if (scanIntervalRef.current) {
