@@ -9,10 +9,7 @@ import { getMockResponse } from "../mock/apiMock";
 // 1) VITE_API_URL            -> local/backend URL (e.g. Docker on localhost:3001)
 // 2) VITE_API_GATEWAY_URL    -> deployed AWS API Gateway URL
 // 3) Hardcoded default       -> current production Gateway URL (fallback only)
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_API_GATEWAY_URL ||
-  'https://a99o55140b.execute-api.us-east-1.amazonaws.com/';
+const API_BASE_URL = import.meta.env.VITE_API_URL ||"http://localhost:3001";
 
 const DATA_MODE = (import.meta.env.VITE_DATA_MODE || "live").toLowerCase();
 
@@ -72,6 +69,7 @@ async function apiRequest<T>(
 
   const response = await fetch(url, {
     ...options,
+    credentials: 'include',
     headers: {
       ...defaultHeaders,
       ...options.headers,
