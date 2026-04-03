@@ -100,3 +100,9 @@ variable "prod_s3_endpoint" {
   type        = string
   default     = "iam-dashboard-project.s3-website-us-east-1.amazonaws.com"
 }
+
+variable "auth_lambda_function_name" {
+  description = "Name of the existing Authentication Lambda function to look up"
+  type        = string
+  default     = "test-BFF"
+}
