@@ -34,12 +34,18 @@
       "Action": [
         "dynamodb:PutItem",
         "dynamodb:GetItem",
-        "dynamodb:DeleteItem",
         "dynamodb:UpdateItem",
         "dynamodb:Query",
         "dynamodb:Scan"
       ],
       "Resource": "arn:aws:dynamodb:*:*:table/iam-dashboard-*"
+    },
+    {
+      "Effect": "AllowDeleteSession",
+      "Action": [
+        "dynamodb:DeleteItem"
+      ],
+      "Resource": "arn:aws:dynamodb:us-east-1:562559071105:table/iam-dashboard-auth-sessions-test"
     },
     {
       "Effect": "Allow",
