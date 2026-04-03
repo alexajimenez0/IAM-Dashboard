@@ -28,6 +28,18 @@ variable "stage_name" {
   default     = "v1"
 }
 
+variable "auth_lambda_function_name" {
+  description = "Function name of the auth Lambda (looked up via data source)"
+  type        = string
+  default     = "test-BFF"
+}
+
+variable "scanner_lambda_function_name" {
+  description = "Function name of the scanner Lambda (looked up via data source)"
+  type        = string
+  default     = "iam-dashboard-scanner"
+}
+
 variable "cors_allowed_origins" {
   description = "List of allowed CORS origins"
   type        = list(string)
