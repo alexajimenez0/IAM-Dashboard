@@ -6,9 +6,9 @@
 import { getMockResponse } from "../mock/apiMock";
 
 // API base URL resolution (priority):
-// 1) VITE_API_URL            -> local/backend URL (e.g. Docker on localhost:3001)
-// 2) VITE_API_GATEWAY_URL    -> deployed AWS API Gateway URL
-// 3) Hardcoded default       -> current production Gateway URL (fallback only)
+// 1) VITE_API_URL            -> production/backend URL (e.g. Docker on localhost:5001 or APIGateway URL)
+// 2) Hardcoded default -> vite dev server to enable port forwarding to APIGateway
+
 const API_BASE_URL = import.meta.env.VITE_API_URL ||"http://localhost:3001";
 
 const DATA_MODE = (import.meta.env.VITE_DATA_MODE || "live").toLowerCase();
