@@ -494,7 +494,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     except UnauthorizedError:
         return create_response(401, {'error': 'Authentication required'})
     except ForbiddenError:
-        return create_response(403, {'error': 'Forbidden'})
+        return create_response(403, {'error': 'Forbidden: You do not have sufficient permissions to perform this operation'})
     except SessionStoreError:
         return create_response(500, {'error': 'Unable to process request'})
     except Exception as e:

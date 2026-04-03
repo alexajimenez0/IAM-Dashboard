@@ -535,6 +535,10 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
       try {
         response = await scanFull('us-east-1');
       } catch (apiError) {
+        const msg = apiError instanceof Error ? apiError.message : String(apiError);
+        if (msg.toLowerCase().includes('forbidden') || msg.toLowerCase().includes('permissions')) {
+          throw apiError;
+        }
         // Even if API throws, create a completed response with empty results
         // API call failed, using fallback response
         response = {
@@ -610,6 +614,17 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
       }, 300);
       
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.toLowerCase().includes('forbidden') || msg.toLowerCase().includes('permissions')) {
+        toast.error('Permission denied', { description: msg });
+        setIsScanning(false);
+        setScanProgress(0);
+        if (scanIntervalRef.current) {
+          clearInterval(scanIntervalRef.current);
+          scanIntervalRef.current = null;
+        }
+        return;
+      }
       // This should NEVER happen for full scan, but just in case...
       // Unexpected error in handleQuickScan
       

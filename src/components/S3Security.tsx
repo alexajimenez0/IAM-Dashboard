@@ -758,7 +758,13 @@ export function S3Security() {
       });
       setIsScanning(false);
       addScanResult(response);
-    } catch {
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.toLowerCase().includes('forbidden') || msg.toLowerCase().includes('permissions')) {
+        setIsScanning(false);
+        toast.error('Permission denied', { description: msg });
+        return;
+      }
       setScanResult({ scan_id: `s3-${Date.now()}`, status: "Completed", progress: 100, account_id: "123456789012", findings: mockS3Findings, scan_summary: mockS3Summary, started_at: new Date().toISOString(), completed_at: new Date().toISOString() });
       setIsScanning(false);
       toast.success("S3 scan completed (demo mode)");
