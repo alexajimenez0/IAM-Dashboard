@@ -225,3 +225,4 @@ lambda.py
 lambda_policy.json
 .tfdata-s3-notify-validate
 .tfdata-ses-validate
+APIGateway_Auth_and_Scanner
