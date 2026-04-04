@@ -90,6 +90,22 @@ def mask_sensitive_data(text: str) -> str:
     masked = mask_access_key(masked)
     return masked
 
+def mask_session_id(session_id: str) -> str:
+    """Return a truncated session ID safe for logging."""
+    return session_id[:10] + '...' if session_id and len(session_id) > 10 else '***'
+
+
+def sanitize_event_for_logging(event: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a copy of the Lambda event with sensitive headers and cookies redacted."""
+    sanitized = json.loads(json.dumps(event, default=str))
+    headers = sanitized.get('headers') or {}
+    for key in ('cookie', 'Cookie', 'authorization', 'Authorization'):
+        if key in headers:
+            headers[key] = '***redacted***'
+    if sanitized.get('cookies'):
+        sanitized['cookies'] = ['***redacted***']
+    return sanitized
+
 # Initialize AWS clients
 s3_client = boto3.client('s3')
 dynamodb = boto3.resource('dynamodb')
@@ -200,7 +216,7 @@ def delete_session(session_id: str) -> None:
     try:
         get_session_table().delete_item(Key={'session_id': session_id})
     except (ClientError, BotoCoreError) as exc:
-        logger.exception('Failed to delete expired session_id=%s', session_id)
+        logger.exception('Failed to delete expired session_id=%s', mask_session_id(session_id))
         raise SessionStoreError('Unable to process request.') from exc
 
 
@@ -218,7 +234,7 @@ def get_session(session_id: str) -> Optional[Dict[str, Any]]:
     try:
         result = get_session_table().get_item(Key={'session_id': session_id})
     except (ClientError, BotoCoreError) as exc:
-        logger.exception('Failed to read session_id=%s', session_id)
+        logger.exception('Failed to read session_id=%s', mask_session_id(session_id))
         raise SessionStoreError('Unable to process request.') from exc
 
     item = result.get('Item')
@@ -234,7 +250,7 @@ def get_session(session_id: str) -> Optional[Dict[str, Any]]:
         try:
             delete_session(session_id)
         except SessionStoreError:
-            logger.warning('Failed to delete expired session_id=%s', session_id)
+            logger.warning('Failed to delete expired session_id=%s', mask_session_id(session_id))
         return None
 
     item['groups'] = normalize_groups(item.get('groups'))
@@ -299,7 +315,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     scan_start_time = datetime.utcnow()
     
     try:
-        logger.info(f"Received event: {json.dumps(event)}")
+        logger.info("Received event: %s", json.dumps(sanitize_event_for_logging(event)))
         
         is_http_request = 'httpMethod' in event or 'requestContext' in event
 
