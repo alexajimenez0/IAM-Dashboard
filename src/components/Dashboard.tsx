@@ -536,7 +536,12 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
         response = await scanFull('us-east-1');
       } catch (apiError) {
         const msg = apiError instanceof Error ? apiError.message : String(apiError);
-        if (msg.toLowerCase().includes('forbidden') || msg.toLowerCase().includes('permissions')) {
+        const normalized = msg.toLowerCase();
+        if (normalized.includes("forbidden") ||
++        normalized.includes("permission") ||
++        normalized.includes("authentication required") ||
++        normalized.includes("unauthorized") ||
+         normalized.includes("accessdenied")) {
           throw apiError;
         }
         // Even if API throws, create a completed response with empty results

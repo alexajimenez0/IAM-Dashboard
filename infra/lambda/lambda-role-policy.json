@@ -41,7 +41,7 @@
       "Resource": "arn:aws:dynamodb:*:*:table/iam-dashboard-*"
     },
     {
-      "Effect": "AllowDeleteSession",
+      "Effect": "Allow",
       "Action": [
         "dynamodb:DeleteItem"
       ],
