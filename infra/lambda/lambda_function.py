@@ -190,7 +190,10 @@ def parse_request_cookies(event: Dict[str, Any]) -> Dict[str, str]:
 
     for raw_cookie in event.get('cookies') or []:
         morsel = cookies.SimpleCookie()
-        morsel.load(raw_cookie)
+        try:
+            morsel.load(raw_cookie)
+        except cookies.CookieError:
+            continue
         for key, value in morsel.items():
             parsed[key] = value.value
 
@@ -198,7 +201,10 @@ def parse_request_cookies(event: Dict[str, Any]) -> Dict[str, str]:
     cookie_header = headers.get('cookie') or headers.get('Cookie')
     if cookie_header:
         morsel = cookies.SimpleCookie()
-        morsel.load(cookie_header)
+        try:
+            morsel.load(cookie_header)
+        except cookies.CookieError:
+            return parsed
         for key, value in morsel.items():
             parsed[key] = value.value
 
