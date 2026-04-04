@@ -760,7 +760,12 @@ export function S3Security() {
       addScanResult(response);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.toLowerCase().includes('forbidden') || msg.toLowerCase().includes('permissions')) {
+      const normalized = msg.toLowerCase();
+      if (normalized.includes("forbidden") ||
++        normalized.includes("permission") ||
++        normalized.includes("authentication required") ||
++        normalized.includes("unauthorized") ||
+         normalized.includes("accessdenied") ) {
         setIsScanning(false);
         toast.error('Permission denied', {
           description: msg,

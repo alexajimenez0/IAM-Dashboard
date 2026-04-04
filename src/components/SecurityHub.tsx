@@ -367,7 +367,12 @@ export function SecurityHub() {
       const msg = err instanceof Error ? err.message : "Unknown error";
       setError(msg);
       setIsScanning(false);
-      if (msg.toLowerCase().includes('forbidden') || msg.toLowerCase().includes('permissions')) {
+      const normalized = msg.toLowerCase();
+      if (normalized.includes('forbidden') ||
++        normalized.includes('unauthorized') ||
++        normalized.includes('permission') ||
++        normalized.includes('accessdenied') ||
+         normalized.includes('authentication required') ) {
         toast.error('Permission denied', {
           description: msg,
           duration: 8000,
