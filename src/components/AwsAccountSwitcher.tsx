@@ -471,6 +471,8 @@ export function AwsAccountSwitcher({ collapsed = false }: AwsAccountSwitcherProp
               <button
                 key={account.id}
                 onClick={() => handleSelect(account.id)}
+                aria-label={`Switch to AWS account ${account.label} (${maskAccountId(account.accountId)})`}
+                aria-current={isSelected ? "true" : undefined}
                 style={{
                   width: "100%",
                   display: "flex",
