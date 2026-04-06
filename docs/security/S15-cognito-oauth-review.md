@@ -2,7 +2,8 @@
 
 **Task:** Security review of Cognito User Pool and OAuth-related setup (GitHub #127).  
 **Scope:** Terraform in this repository as of review; live AWS may differ if Console or non-committed `tfvars` were used.  
-**Related docs:** [`infra/cognito/COGNITO_CONFIG.md`](../../infra/cognito/COGNITO_CONFIG.md), [`docs/backend/Authentication_Flow.md`](../backend/Authentication_Flow.md).
+**Related docs:** [`infra/cognito/COGNITO_CONFIG.md`](../../infra/cognito/COGNITO_CONFIG.md), [`docs/backend/Authentication_Flow.md`](../backend/Authentication_Flow.md).  
+**Audit trail:** Reviewed on 2026-04-05, against commit `e804266bfda07a925085f5c87b5f6109ff77a7e8` (repository state); Terraform plan output was not attached—static analysis of cited paths only.
 
 ---
 
