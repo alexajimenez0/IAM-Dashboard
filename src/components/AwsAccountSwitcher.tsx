@@ -455,10 +455,16 @@ export function AwsAccountSwitcher({ collapsed = false }: AwsAccountSwitcherProp
         </div>
 
         {/* Account list */}
-        <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+        <div
+          style={{
+            borderTop: "1px solid rgba(255,255,255,0.05)",
+            maxHeight: "min(40vh, 260px)",
+            overflowY: "auto",
+          }}
+        >
           {accounts.map((account, i) => {
-            const acColor = getStatusColor(account.id);
-            const acStatus = getStatusLabel(account.id);
+            const acColor = getStatusColor(account.accountId);
+            const acStatus = getStatusLabel(account.accountId);
             const isSelected = account.id === selectedAccount?.id;
 
             return (
