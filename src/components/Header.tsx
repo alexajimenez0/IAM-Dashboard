@@ -15,7 +15,6 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { useActiveScanResults } from "../hooks/useActiveScanResults";
-import { AwsAccountSwitcher } from "./AwsAccountSwitcher";
 import { cn } from "./ui/utils";
 
 interface HeaderProps {
@@ -277,11 +276,9 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
         </div>
       </div>
 
-      {/* ── CENTER: Account Switcher + Search ── */}
+      {/* ── CENTER: Search ── */}
       <div className="flex items-center gap-3 flex-1 justify-center">
-        <AwsAccountSwitcher compact />
-
-        <div ref={searchContainerRef} className="relative flex-1 max-w-[380px]">
+        <div ref={searchContainerRef} className="relative flex-1 max-w-[460px]">
           <Search
             className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
             style={{ color: "rgba(71,85,105,0.8)" }}
