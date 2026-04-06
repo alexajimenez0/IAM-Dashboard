@@ -1,25 +1,19 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { useAwsAccount, type AwsConnectedAccount } from "../context/AwsAccountContext";
+import { getMockConnectionState } from "../constants/awsAccountConnectionMock";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 
-// Mirrors MOCK_CONNECTIONS in AwsAccountConnectionStatus
-const STATUS_MAP: Record<string, "connected" | "pending" | "error" | "disconnected"> = {
-  "mock-prod": "connected",
-  "mock-staging": "pending",
-  "mock-dev": "error",
-};
-
-function getStatusColor(id: string): string {
-  const s = STATUS_MAP[id] ?? "disconnected";
+function getStatusColor(accountId: string): string {
+  const s = getMockConnectionState(accountId);
   if (s === "connected") return "#00ff88";
   if (s === "pending") return "#ffb000";
   if (s === "error") return "#ff0040";
   return "#475569";
 }
 
-function getStatusLabel(id: string): string {
-  const s = STATUS_MAP[id] ?? "disconnected";
+function getStatusLabel(accountId: string): string {
+  const s = getMockConnectionState(accountId);
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
@@ -56,7 +50,7 @@ function OrbitalRadar({
     const angle = ANGLES[i] ?? (-Math.PI / 2 + (i * Math.PI * 2) / accounts.length);
     const x = CX + Math.cos(angle) * r;
     const y = CY + Math.sin(angle) * r;
-    const color = getStatusColor(account.id);
+    const color = getStatusColor(account.accountId);
     const isSelected = account.id === selectedId;
 
     // Label positioning: keep inside the 200×200 canvas
@@ -222,8 +216,8 @@ export function AwsAccountSwitcher({ collapsed = false }: AwsAccountSwitcherProp
   const { accounts, selectedAccount, selectAccount } = useAwsAccount();
   const [open, setOpen] = useState(false);
 
-  const color = selectedAccount ? getStatusColor(selectedAccount.id) : "#475569";
-  const statusLabel = selectedAccount ? getStatusLabel(selectedAccount.id) : "None";
+  const color = selectedAccount ? getStatusColor(selectedAccount.accountId) : "#475569";
+  const statusLabel = selectedAccount ? getStatusLabel(selectedAccount.accountId) : "None";
 
   const handleSelect = (id: string) => {
     selectAccount(id);
@@ -437,7 +431,7 @@ export function AwsAccountSwitcher({ collapsed = false }: AwsAccountSwitcherProp
               fontFamily: "'JetBrains Mono', monospace",
             }}
           >
-            {accounts.filter((a) => STATUS_MAP[a.id] === "connected").length}
+            {accounts.filter((a) => getMockConnectionState(a.accountId) === "connected").length}
             {" / "}
             {accounts.length} live
           </span>
