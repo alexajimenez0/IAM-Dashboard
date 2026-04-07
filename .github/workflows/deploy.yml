@@ -107,13 +107,17 @@ jobs:
           fi
           echo "$OUT"
           if echo "$OUT" | grep -q ResourceConflictException; then
-            WAIT=$((attempt * 5))
-            echo "Concurrent Lambda update (ResourceConflictException); retry $attempt/$MAX_ATTEMPTS in ${WAIT}s..."
-            sleep "$WAIT"
-            attempt=$((attempt + 1))
-            continue
+            if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+              WAIT=$((attempt * 5))
+              echo "Concurrent Lambda update (ResourceConflictException); retry $attempt/$MAX_ATTEMPTS in ${WAIT}s..."
+              sleep "$WAIT"
+              attempt=$((attempt + 1))
+              continue
+            fi
+            echo "Concurrent Lambda update (ResourceConflictException); no retries left ($attempt/$MAX_ATTEMPTS)."
+            exit "$RC"
           fi
           exit "$RC"
         done
         echo "Lambda update failed after $MAX_ATTEMPTS attempts (concurrent updates)"
-        exit 1
+        exit "${RC:-254}"
