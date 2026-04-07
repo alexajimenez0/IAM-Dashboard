@@ -95,13 +95,13 @@ module "lambda" {
 module "api_gateway" {
   source = "./api-gateway"
 
-  aws_region             = var.aws_region
-  environment            = var.environment
-  project_name           = var.project_name
-  kms_key_arn            = data.aws_kms_key.logs.arn
-  cognito_issuer_url     = module.cognito.issuer_url
-  cognito_app_client_id  = module.cognito.app_client_id
-  cors_allowed_origins   = var.allowed_urls
+  aws_region            = var.aws_region
+  environment           = var.environment
+  project_name          = var.project_name
+  kms_key_arn           = data.aws_kms_key.logs.arn
+  cognito_issuer_url    = module.cognito.issuer_url
+  cognito_app_client_id = module.cognito.app_client_id
+  cors_allowed_origins  = var.allowed_urls
 }
 
 # API Gateway Module for the Authentication APIs

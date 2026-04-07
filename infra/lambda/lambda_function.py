@@ -382,10 +382,10 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         }, event)
         
     except Exception as e:
-        logger.error(f"Error in lambda_handler: {str(e)}", exc_info=True)
+        logger.error(f"Error in lambda_handler: {e!s}", exc_info=True)
         return create_response(500, {
             'error': 'Internal server error',
-            'message': str(e)
+            'message': f"{e!s}"
         }, event)
 
 
