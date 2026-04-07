@@ -39,8 +39,14 @@ variable "scanner_lambda_function_name" {
 }
 
 variable "cors_allowed_origins" {
-  description = "List of allowed CORS origins"
+  description = "List of allowed CORS origins (no wildcards). Override via root module var.allowed_urls."
   type        = list(string)
+  default = [
+    "http://localhost:3001",
+    "https://d33ytnxd7i6mo9.cloudfront.net",
+    "http://localhost:5173",
+    "http://localhost:5001",
+  ]
 }
 
 variable "cors_allowed_methods" {

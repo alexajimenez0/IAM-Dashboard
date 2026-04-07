@@ -86,6 +86,10 @@ module "lambda" {
   session_table_name   = module.auth_dynamodb.dynamodb_table_name
   s3_bucket_name       = var.s3_bucket_name
   lambda_kms_key_arn   = data.aws_kms_key.logs.arn
+
+  lambda_environment_variables = {
+    CORS_ALLOWED_ORIGINS = join(",", var.allowed_urls)
+  }
 }
 
 # API Gateway Module for the Scanner APIs
