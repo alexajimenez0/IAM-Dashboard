@@ -113,6 +113,19 @@ def _cors_allowed_origins_set() -> set:
     return {o.strip() for o in raw.split(',') if o.strip()}
 
 
+def _get_header_case_insensitive(headers: Optional[Dict[str, Any]], name: str) -> Optional[str]:
+    """Resolve a header value when API Gateway may use arbitrary key casing."""
+    if not headers:
+        return None
+    target = name.lower()
+    for key, value in headers.items():
+        if key is not None and str(key).lower() == target:
+            if value is None:
+                return None
+            return value if isinstance(value, str) else str(value)
+    return None
+
+
 def _cors_response_headers(event: Optional[Dict[str, Any]]) -> Dict[str, str]:
     """
     CORS headers for Lambda proxy integration. Reflects Origin only when it is in the allowlist
@@ -130,7 +143,7 @@ def _cors_response_headers(event: Optional[Dict[str, Any]]) -> Dict[str, str]:
     origin = None
     if event:
         hdrs = event.get('headers') or {}
-        origin = hdrs.get('origin') or hdrs.get('Origin')
+        origin = _get_header_case_insensitive(hdrs, 'Origin')
     if origin and origin in allow:
         headers['Access-Control-Allow-Origin'] = origin
         headers['Vary'] = 'Origin'
