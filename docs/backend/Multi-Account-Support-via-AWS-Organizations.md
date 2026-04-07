@@ -18,16 +18,16 @@ The dashboard currently scans a single AWS account (whichever credentials are in
 
 ## **Architecture Overview**
 
-[Architecture Overview](Images/Architecture-Overview-for-Multiaccount-Backend.png)
+![Architecture Overview](Images/Architecture-Overview-for-Multiaccount-Backend.png)
 
 Same as above
-[Architecture Overview #2](Images/Architecture-Overview.png)
+![Architecture Overview #2](Images/Architecture-Overview.png)
 
 ## **Request Flow: Scanning a Specific Account**
-[Scanning a Specific Account](Images/Scanning-Specific-Account.png)
+![Scanning a Specific Account](Images/Scanning-Specific-Account.png)
 
 ## **Request Flow: "Scan All Accounts"**
-[Scan All Accounts](Images/Scan-All-Accounts.png)
+![Scan All Accounts](Images/Scan-All-Accounts.png)
 
 ## **Backend Changes**
 
