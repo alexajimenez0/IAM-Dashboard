@@ -101,7 +101,7 @@ class DynamoDBService:
             return items
         except ClientError as e:
             logger.error(f"DynamoDB error listing scan records: {str(e)}")
-            return []
+            raise
 
     def create_iam_finding(self, finding_data: Dict[str, Any]) -> bool:
         """Create a new IAM finding"""
