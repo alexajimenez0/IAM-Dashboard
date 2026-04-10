@@ -126,6 +126,9 @@ PROJECT_NAME = os.environ.get('PROJECT_NAME', 'IAMDash')
 ENVIRONMENT = os.environ.get('ENVIRONMENT', 'dev')
 COOKIE_NAME = 'iamdash_session'
 SESSION_TABLE_NAME = os.environ.get('SESSION_TABLE_NAME', 'iam-dashboard-auth-sessions-test')
+ACCOUNTS_TABLE_NAME = os.environ.get("ACCOUNTS_TABLE_NAME", "iam-dashboard-accounts-test")
+CROSS_ACCOUNT_ROLE_NAME = os.environ.get("CROSS_ACCOUNT_ROLE_NAME", "iam-dashboard-scan-role")
+MAIN_ACCOUNT_ID = os.environ.get("MAIN_ACCOUNT_ID")
 SCANNER_GROUP_MAP = {
     'admin':       None,  # admin is handled separately — allowed all non-full types
     'iam':         'iam',
@@ -252,6 +255,68 @@ def parse_request_cookies(event: Dict[str, Any]) -> Dict[str, str]:
 
     return parsed
 
+def get_accounts_table():
+    return dynamodb.Table(ACCOUNTS_TABLE_NAME)
+
+def get_registered_account(account_id: str) -> Optional[Dict[str, Any]]:
+    if not account_id:
+        return None
+
+    try:
+        result = get_accounts_table().get_item(Key={"account_id": account_id})
+    except (ClientError, BotoCoreError) as exc:
+        logger.exception("Failed to read registered account_id=%s", account_id)
+        raise SessionStoreError("Unable to process request.") from exc
+
+    return result.get("Item")
+
+def get_scan_clients_for_account(account_id: Optional[str], region: str) -> Dict[str, Any]:
+    if not account_id or (MAIN_ACCOUNT_ID and account_id == MAIN_ACCOUNT_ID):
+        return {
+            "securityhub": boto3.client("securityhub", region_name=region),
+            "guardduty": boto3.client("guardduty", region_name=region),
+            "config": boto3.client("config", region_name=region),
+            "inspector": boto3.client("inspector2", region_name=region),
+            "macie": boto3.client("macie2", region_name=region),
+            "iam": boto3.client("iam"),
+            "ec2": boto3.client("ec2", region_name=region),
+            "s3": boto3.client("s3"),
+            "sts": boto3.client("sts")
+        }
+
+    role_arn = f"arn:aws:iam::{account_id}:role/{CROSS_ACCOUNT_ROLE_NAME}"
+
+    try:
+        response = sts.assume_role(
+            RoleArn=role_arn,
+            RoleSessionName=f"DashboardScan-{account_id}"
+        )
+    except ClientError as exc:
+        logger.exception("Failed to assume role for account_id=%s", account_id)
+        raise ForbiddenError(
+            f"Cannot assume role in account {account_id}"
+        ) from exc
+
+    creds = response["Credentials"]
+
+    session = boto3.Session(
+        aws_access_key_id=creds["AccessKeyId"],
+        aws_secret_access_key=creds["SecretAccessKey"],
+        aws_session_token=creds["SessionToken"],
+        region_name=region
+    )
+
+    return {
+        "securityhub": session.client("securityhub", region_name=region),
+        "guardduty": session.client("guardduty", region_name=region),
+        "config": session.client("config", region_name=region),
+        "inspector": session.client("inspector2", region_name=region),
+        "macie": session.client("macie2", region_name=region),
+        "iam": session.client("iam"),
+        "ec2": session.client("ec2", region_name=region),
+        "s3": session.client("s3"),
+        "sts": session.client("sts")
+    }
 
 def get_session_table():
     """Resolve the DynamoDB session table from the configured environment."""
@@ -389,6 +454,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             body = json.loads(event.get('body', '{}')) if event.get('body') else {}
             region = body.get('region', 'us-east-1')
             scan_params = body
+            account_id = body.get("account_id")
         else:
             # Direct invocation
             scanner_type = event.get('scanner_type', '')
@@ -406,15 +472,34 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if is_http_request:
             session = require_authenticated_session(event)
             require_groups(session, scanner_type)
+            
+        account_name = None
+        if account_id:
+            registered_account = get_registered_account(account_id)
+            if not registered_account:
+                return create_response(404, {
+                    "error": f"Account {account_id} is not registered"
+                }, event)
+            account_name = registered_account.get("account_name")
         
+        scan_clients = get_scan_clients_for_account(account_id, region)
+
         # Execute scan
         scan_id = f"{scanner_type}-{datetime.utcnow().isoformat()}"
         logger.info(f"Starting scan: {scan_id} for type: {scanner_type}")
         
         try:
-            scan_result = execute_scan(scanner_type, region, scan_params, scan_id)
+            scan_result = execute_scan(scanner_type, region, scan_params, scan_id, scan_clients)
             scan_duration = (datetime.utcnow() - scan_start_time).total_seconds()
-            
+
+            if account_id:
+                scan_result["account_id"] = account_id
+                scan_result["account_name"] = account_name
+            elif MAIN_ACCOUNT_ID:
+                scan_result["account_id"] = MAIN_ACCOUNT_ID
+                if not scan_result.get("account_name"):
+                    scan_result["account_name"] = "Main Account"
+
             # Ensure scan_result is a dict
             if not isinstance(scan_result, dict):
                 logger.warning(f"Scan result is not a dict: {type(scan_result)}")
@@ -569,7 +654,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         }, event)
 
 
-def execute_scan(scanner_type: str, region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
+def execute_scan(
+    scanner_type: str, region: str, scan_params: Dict[str, Any], scan_id: str, scan_clients: Dict[str, Any]) -> Dict[str, Any]:
     """Execute the appropriate security scan based on scanner type"""
     
     scanner_handlers = {
@@ -585,11 +671,13 @@ def execute_scan(scanner_type: str, region: str, scan_params: Dict[str, Any], sc
     }
     
     handler = scanner_handlers.get(scanner_type)
-    if handler:
-        return handler(region, scan_params, scan_id)
-    else:
+    if not handler:
         raise ValueError(f"Unknown scanner type: {scanner_type}")
 
+    if scanner_type == "iam":
+        return handler(region, scan_params, scan_id, scan_clients)
+
+    return handler(region, scan_params, scan_id)
 
 def scan_security_hub(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
     """Scan AWS Security Hub for findings"""
@@ -985,13 +1073,16 @@ def analyze_policy_document(policy_doc: Dict[str, Any], role_name: str, role_arn
     return findings
 
 
-def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
+def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str, scan_clients: Dict[str, Any]) -> Dict[str, Any]:
     """Scan IAM for security issues"""
     try:
         logger.info(f"Scanning IAM in region: {region}")
+
+        iam_client = scan_clients["iam"]
+        sts_client = scan_clients["sts"]
         
         # List users
-        users = iam.list_users()
+        users = iam_client.list_users()
         user_list = users.get('Users', [])
         
         # Analyze users and generate findings
@@ -1005,7 +1096,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
         low_findings = 0
         
         # Get account ID
-        account_id = sts.get_caller_identity().get('Account', 'N/A')
+        account_id = sts_client.get_caller_identity().get('Account', 'N/A')
         
         for user in user_list:
             user_name = user['UserName']
@@ -1013,7 +1104,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
             
             try:
                 # Check MFA
-                mfa_devices = iam.list_mfa_devices(UserName=user_name)
+                mfa_devices = iam_client.list_mfa_devices(UserName=user_name)
                 if not mfa_devices.get('MFADevices'):
                     users_without_mfa += 1
                     high_findings += 1
@@ -1030,7 +1121,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                     users_with_mfa += 1
                 
                 # Check access keys
-                access_keys = iam.list_access_keys(UserName=user_name)
+                access_keys = iam_client.list_access_keys(UserName=user_name)
                 key_metadata = access_keys.get('AccessKeyMetadata', [])
                 
                 for key in key_metadata:
@@ -1056,7 +1147,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                     
                     # Check last used
                     try:
-                        last_used = iam.get_access_key_last_used(AccessKeyId=key_id)
+                        last_used = iam_client.get_access_key_last_used(AccessKeyId=key_id)
                         last_used_date = last_used.get('AccessKeyLastUsed', {}).get('LastUsedDate')
                         if last_used_date:
                             days_since_use = (datetime.now(timezone.utc) - last_used_date.replace(tzinfo=timezone.utc)).days
@@ -1076,8 +1167,8 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                 
                 # Check for admin policies
                 try:
-                    attached_policies = iam.list_attached_user_policies(UserName=user_name)
-                    inline_policies = iam.list_user_policies(UserName=user_name)
+                    attached_policies = iam_client.list_attached_user_policies(UserName=user_name)
+                    inline_policies = iam_client.list_user_policies(UserName=user_name)
                     
                     # Check for AdministratorAccess
                     for policy in attached_policies.get('AttachedPolicies', []):
@@ -1118,7 +1209,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                 continue
         
         # List roles
-        roles = iam.list_roles()
+        roles = iam_client.list_roles()
         role_list = roles.get('Roles', [])
         
         # Service principal mappings for infrastructure identification
@@ -1145,7 +1236,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
             
             try:
                 # Get role details including trust policy
-                role_details = iam.get_role(RoleName=role_name)
+                role_details = iam_client.get_role(RoleName=role_name)
                 assume_role_policy = role_details.get('Role', {}).get('AssumeRolePolicyDocument', {})
                 
                 # Parse trust policy to identify service principals
@@ -1229,7 +1320,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                     })
                 
                 # Analyze attached policies
-                attached_policies = iam.list_attached_role_policies(RoleName=role_name)
+                attached_policies = iam_client.list_attached_role_policies(RoleName=role_name)
                 for policy in attached_policies.get('AttachedPolicies', []):
                     policy_arn = policy.get('PolicyArn', '')
                     
@@ -1249,10 +1340,10 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                     
                     # Get and analyze policy document
                     try:
-                        policy_details = iam.get_policy(PolicyArn=policy_arn)
+                        policy_details = iam_client.get_policy(PolicyArn=policy_arn)
                         default_version = policy_details.get('Policy', {}).get('DefaultVersionId')
                         if default_version:
-                            policy_version = iam.get_policy_version(PolicyArn=policy_arn, VersionId=default_version)
+                            policy_version = iam_client.get_policy_version(PolicyArn=policy_arn, VersionId=default_version)
                             policy_doc = policy_version.get('PolicyVersion', {}).get('Document', {})
                             
                             # Analyze policy document for security issues
@@ -1275,10 +1366,10 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                 
                 # Analyze inline policies
                 try:
-                    inline_policies = iam.list_role_policies(RoleName=role_name)
+                    inline_policies = iam_client.list_role_policies(RoleName=role_name)
                     for inline_policy_name in inline_policies.get('PolicyNames', []):
                         try:
-                            inline_policy = iam.get_role_policy(RoleName=role_name, PolicyName=inline_policy_name)
+                            inline_policy = iam_client.get_role_policy(RoleName=role_name, PolicyName=inline_policy_name)
                             policy_doc = inline_policy.get('PolicyDocument', {})
                             
                             # Analyze inline policy document
@@ -1306,11 +1397,11 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                 continue
         
         # List policies
-        policies = iam.list_policies(Scope='Local', MaxItems=100)
+        policies = iam_client.list_policies(Scope='Local', MaxItems=100)
         policy_list = policies.get('Policies', [])
         
         # List groups
-        groups = iam.list_groups()
+        groups = iam_client.list_groups()
         group_list = groups.get('Groups', [])
         
         return {
