@@ -185,45 +185,44 @@ def handle_post_accounts(event: Dict[str, Any]) -> Dict[str, Any]:
     return create_response(201, {"message": "Account registered successfully"})
 
 def handle_get_accounts(event: Dict[str, Any]) -> Dict[str, Any]:
-    """List all registered accounts; fall back to main account if table is empty."""
+    """List all registered accounts; always include the main account."""
     require_authenticated_session(event)
     accounts_table = get_accounts_table()
-
+    
+    # Always get the main account ID
+    main_account_id = None
+    try:
+        identity = sts.get_caller_identity()
+        main_account_id = identity.get("Account", "unknown")
+    except (ClientError, BotoCoreError):
+        logger.exception("Failed to get caller identity")
+        return create_response(500, {"error": "Failed to retrieve accounts"})
+    
+    # Build accounts list starting with main account
+    accounts = [
+        {
+            "account_id": main_account_id,
+            "account_name": "Main Account"
+        }
+    ]
+    
+    # Add registered accounts from DynamoDB, avoiding duplicates
     try:
         response = accounts_table.scan()
         items = response.get("Items", [])
+        for item in items:
+            account_id = item.get("account_id")
+            # Skip if it's the main account (already added)
+            if account_id != main_account_id:
+                accounts.append({
+                    "account_id": account_id,
+                    "account_name": item.get("account_name")
+                })
     except (ClientError, BotoCoreError):
-        logger.exception("Failed to retrieve accounts")
-        return create_response(500, {"error": "Failed to retrieve accounts"})
-
-    if not items:
-        try:
-            identity = sts.get_caller_identity()
-            main_account_id = identity.get("Account", "unknown")
-            return create_response(
-                200,
-                {
-                    "accounts": [
-                        {
-                            "account_id": main_account_id,
-                            "account_name": "Main Account"
-                        }
-                    ],
-                    "total": 1
-                }
-            )
-        except (ClientError, BotoCoreError):
-            logger.exception("Failed to get caller identity fallback")
-            return create_response(500, {"error": "Failed to retrieve accounts"})
-
-    accounts = [
-        {
-            "account_id": item.get("account_id"),
-            "account_name": item.get("account_name")
-        }
-        for item in items
-    ]
-
+        logger.exception("Failed to retrieve registered accounts")
+        # Still return main account even if DynamoDB fails
+        pass
+    
     return create_response(
         200,
         {
