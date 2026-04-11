@@ -155,6 +155,7 @@ class SessionStoreError(Exception):
 
 
 def _cors_allowed_origins_set() -> set:
+    """Return the set of allowed origins from the CORS_ALLOWED_ORIGINS environment variable."""
     raw = os.environ.get('CORS_ALLOWED_ORIGINS', '')
     return {o.strip() for o in raw.split(',') if o.strip()}
 
@@ -256,9 +257,11 @@ def parse_request_cookies(event: Dict[str, Any]) -> Dict[str, str]:
     return parsed
 
 def get_accounts_table():
+    """Return the DynamoDB accounts table."""
     return dynamodb.Table(ACCOUNTS_TABLE_NAME)
 
 def get_registered_account(account_id: str) -> Optional[Dict[str, Any]]:
+    """Return the registered account record for the given account ID."""
     if not account_id:
         return None
 
@@ -271,6 +274,7 @@ def get_registered_account(account_id: str) -> Optional[Dict[str, Any]]:
     return result.get("Item")
 
 def get_scan_clients_for_account(account_id: Optional[str], region: str) -> Dict[str, Any]:
+    """Return scan clients for the main account or an assumed target account."""
     if not account_id or (MAIN_ACCOUNT_ID and account_id == MAIN_ACCOUNT_ID):
         return {
             "securityhub": boto3.client("securityhub", region_name=region),
