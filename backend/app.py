@@ -37,6 +37,7 @@ from api.ir import (
     IRAuditResource,
 )
 from api.tts import TTSSynthesizeResource
+from api.voice_intent import VoiceIntentResource
 
 # Import services
 from services.aws_service import AWSService
@@ -112,6 +113,7 @@ def create_app():
     api.add_resource(IREvidenceResource,          '/ir/evidence/<string:finding_id>')
     api.add_resource(IRAuditResource,             '/ir/audit')
     api.add_resource(TTSSynthesizeResource,       '/tts/synthesize')
+    api.add_resource(VoiceIntentResource,         '/voice/intent')
 
     # Serve static files (React frontend)
     @app.route('/')
