@@ -68,7 +68,17 @@ def require_jwt(view_func: Callable):
     def wrapped(*args, **kwargs):
         secret = os.environ.get("JWT_SECRET", "").strip()
         if not secret:
-            return view_func(*args, **kwargs)
+            if os.environ.get("FLASK_ENV") == "development":
+                return view_func(*args, **kwargs)
+            return (
+                jsonify(
+                    {
+                        "error": "Service Unavailable",
+                        "message": "JWT authentication is not configured",
+                    }
+                ),
+                503,
+            )
 
         authz = request.headers.get("Authorization", "")
         if not authz.startswith("Bearer "):

@@ -140,13 +140,20 @@ def _filter_rows(
                     dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
             except ValueError:
                 dt = None
-            if dt is not None:
-                if start and dt < start:
-                    continue
-                if end and dt > end:
-                    continue
+            if dt is None:
+                continue
+            if start and dt < start:
+                continue
+            if end and dt > end:
+                continue
         out.append(r)
     return out
+
+
+def _sanitize_csv_cell(value: str) -> str:
+    if value and value[0] in "=+-@":
+        return "'" + value
+    return value
 
 
 def _build_csv(rows: List[Dict[str, str]]) -> str:
@@ -154,7 +161,7 @@ def _build_csv(rows: List[Dict[str, str]]) -> str:
     writer = csv.DictWriter(buf, fieldnames=CSV_COLUMNS, extrasaction="ignore")
     writer.writeheader()
     for r in rows:
-        writer.writerow(r)
+        writer.writerow({k: _sanitize_csv_cell(str(v)) for k, v in r.items()})
     return buf.getvalue()
 
 
