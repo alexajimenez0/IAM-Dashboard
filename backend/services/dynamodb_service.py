@@ -130,6 +130,23 @@ class DynamoDBService:
             logger.error(f"DynamoDB error creating IAM finding: {str(e)}")
             return False
 
+    def list_all_iam_findings(self) -> List[Dict]:
+        """Return all IAM finding items via paginated table scan."""
+        items: List[Dict[str, Any]] = []
+        kwargs: Dict[str, Any] = {}
+        try:
+            while True:
+                response = self.iam_findings.scan(**kwargs)
+                items.extend(response.get("Items", []))
+                lek = response.get("LastEvaluatedKey")
+                if not lek:
+                    break
+                kwargs["ExclusiveStartKey"] = lek
+            return items
+        except ClientError as e:
+            logger.error(f"DynamoDB error scanning IAM findings: {str(e)}")
+            raise
+
     def get_iam_findings_by_resource(self, resource_type: str, severity: str = None) -> List[Dict]:
         """Get IAM findings by resource type and severity"""
         try:

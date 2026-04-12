@@ -4,10 +4,11 @@ Database Service for data persistence and management
 
 import os
 import logging
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Text, Float
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Text, Float, and_, or_
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
+from typing import List, Optional, Set
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +102,53 @@ class DatabaseService:
             return findings
         except Exception as e:
             logger.error(f"Error getting security findings: {str(e)}")
+            return []
+
+    def query_security_findings_for_export(
+        self,
+        severities: Optional[Set[str]] = None,
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
+        statuses: Optional[Set[str]] = None,
+    ) -> List[SecurityFinding]:
+        """Filtered query for CSV export (PostgreSQL / SQLite)."""
+        try:
+            session = self.get_session()
+            q = session.query(SecurityFinding)
+            if severities:
+                q = q.filter(SecurityFinding.severity.in_(list(severities)))
+            if start is not None:
+                q = q.filter(SecurityFinding.created_at >= start)
+            if end is not None:
+                q = q.filter(SecurityFinding.created_at <= end)
+            if statuses:
+                status_conds = []
+                if "OPEN" in statuses:
+                    status_conds.append(
+                        and_(
+                            SecurityFinding.resolved.is_(False),
+                            or_(
+                                SecurityFinding.status.is_(None),
+                                SecurityFinding.status != "SUPPRESSED",
+                            ),
+                        )
+                    )
+                if "RESOLVED" in statuses:
+                    status_conds.append(
+                        or_(
+                            SecurityFinding.resolved.is_(True),
+                            SecurityFinding.status.in_(["RESOLVED", "CLOSED"]),
+                        )
+                    )
+                if "SUPPRESSED" in statuses:
+                    status_conds.append(SecurityFinding.status == "SUPPRESSED")
+                if status_conds:
+                    q = q.filter(or_(*status_conds))
+            findings = q.order_by(SecurityFinding.created_at.desc()).all()
+            session.close()
+            return findings
+        except Exception as e:
+            logger.error(f"Error querying security findings for export: {str(e)}")
             return []
     
     def update_security_finding(self, finding_id: str, update_data: dict) -> bool:
