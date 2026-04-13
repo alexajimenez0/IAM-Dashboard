@@ -903,7 +903,7 @@ def scan_guardduty(region: str, scan_params: Dict[str, Any], scan_id: str, scan_
             for page in page_iterator:
                 finding_ids = page.get('FindingIds', [])
                 if finding_ids:
-                    findings_response = guardduty.get_findings(
+                    findings_response = guardduty_client.get_findings(
                         DetectorId=detector_id,
                         FindingIds=finding_ids
                     )
@@ -929,7 +929,7 @@ def scan_config(region: str, scan_params: Dict[str, Any], scan_id: str, scan_cli
         config_client = scan_clients["config"]
         # Check if Config is enabled
         try:
-            recorders = config.describe_configuration_recorders()
+            recorders = config_client.describe_configuration_recorders()
             if not recorders.get('ConfigurationRecorders'):
                 return {
                     'error': 'AWS Config is not enabled in this region',
