@@ -26,3 +26,15 @@ variable "main_account_id" {
   description = "AWS account ID where the scanner Lambda execution role lives"
   type        = string
 }
+
+variable "account_management_lambda_role_name" {
+  description = "Name of the Account Management lambda function"
+  type        = string
+  default     = "iam-dashboard-account-mgmt-role"
+}
+
+variable "scanner_lambda_role_name" {
+  description = "Name of the scanner Lambda execution role in the main account"
+  type        = string
+  default     = "iam-dashboard-lambda-role"
+}
