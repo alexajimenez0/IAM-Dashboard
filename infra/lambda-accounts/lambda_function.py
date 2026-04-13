@@ -220,8 +220,7 @@ def handle_get_accounts(event: Dict[str, Any]) -> Dict[str, Any]:
                 })
     except (ClientError, BotoCoreError):
         logger.exception("Failed to retrieve registered accounts")
-        # Still return main account even if DynamoDB fails
-        pass
+        return create_response(500, {"error": "Failed to retrieve accounts"})
     
     return create_response(
         200,
