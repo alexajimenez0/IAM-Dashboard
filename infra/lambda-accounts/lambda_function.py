@@ -29,7 +29,7 @@ class SessionStoreError(Exception):
 
 
 def create_response(status_code: int, body: Dict[str, Any]) -> Dict[str, Any]:
-    # Format response for API Gateway
+    """Format a response for API Gateway with the given status code and body."""
     return {
         "statusCode": status_code,
         "headers": {
@@ -40,7 +40,7 @@ def create_response(status_code: int, body: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def parse_request_cookies(event: Dict[str, Any]) -> Dict[str, str]:
-    # Extract cookies from event (supports both HTTP API and header-based formats)
+    """Extract cookies from the event supporting both HTTP API and header-based formats."""
     parsed: Dict[str, str] = {}
 
     for raw_cookie in event.get("cookies") or []:
@@ -67,17 +67,17 @@ def parse_request_cookies(event: Dict[str, Any]) -> Dict[str, str]:
 
 
 def get_session_table():
-    # Get DynamoDB session table
+    """Return the DynamoDB session table."""
     return dynamodb.Table(SESSION_TABLE_NAME)  # type: ignore
 
 
 def get_accounts_table():
-    # Get DynamoDB accounts table
+    """Return the DynamoDB accounts table."""
     return dynamodb.Table(ACCOUNTS_TABLE_NAME)  # type: ignore
 
 
 def get_session(session_id: str) -> Optional[Dict[str, Any]]:
-    # Retrieve session from DynamoDB; return None if expired or missing
+    """Retrieve session from DynamoDB; return None if expired or missing."""
     try:
         result = get_session_table().get_item(Key={"session_id": session_id})
     except (ClientError, BotoCoreError) as exc:
@@ -100,7 +100,7 @@ def get_session(session_id: str) -> Optional[Dict[str, Any]]:
 
 
 def get_request_session(event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    # Extract session from request cookies
+    """Extract session from request cookies."""
     request_cookies = parse_request_cookies(event)
     session_id = request_cookies.get(COOKIE_NAME)
     if not session_id:
@@ -109,7 +109,7 @@ def get_request_session(event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
 
 def require_authenticated_session(event: Dict[str, Any]) -> Dict[str, Any]:
-    # Enforce valid session; raise UnauthorizedError if missing or expired
+    """Enforce valid session; raise UnauthorizedError if missing or expired."""
     session = get_request_session(event)
     if not session:
         raise UnauthorizedError("Authentication required.")
@@ -117,7 +117,7 @@ def require_authenticated_session(event: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def handle_post_accounts(event: Dict[str, Any]) -> Dict[str, Any]:
-    # Register a new AWS account: validate request, check role exists, store in DynamoDB
+    """Register a new AWS account after validating the request and role existence."""
     session = require_authenticated_session(event)
 
     try:
@@ -185,45 +185,44 @@ def handle_post_accounts(event: Dict[str, Any]) -> Dict[str, Any]:
     return create_response(201, {"message": "Account registered successfully"})
 
 def handle_get_accounts(event: Dict[str, Any]) -> Dict[str, Any]:
-    # List all registered accounts; fall back to main account if table is empty
+    """List all registered accounts; always include the main account."""
     require_authenticated_session(event)
     accounts_table = get_accounts_table()
-
+    
+    # Always get the main account ID
+    main_account_id = None
+    try:
+        identity = sts.get_caller_identity()
+        main_account_id = identity.get("Account", "unknown")
+    except (ClientError, BotoCoreError):
+        logger.exception("Failed to get caller identity")
+        return create_response(500, {"error": "Failed to retrieve accounts"})
+    
+    # Build accounts list starting with main account
+    accounts = [
+        {
+            "account_id": main_account_id,
+            "account_name": "Main Account"
+        }
+    ]
+    
+    # Add registered accounts from DynamoDB, avoiding duplicates
     try:
         response = accounts_table.scan()
         items = response.get("Items", [])
+        for item in items:
+            account_id = item.get("account_id")
+            # Skip if it's the main account (already added)
+            if account_id != main_account_id:
+                accounts.append({
+                    "account_id": account_id,
+                    "account_name": item.get("account_name")
+                })
     except (ClientError, BotoCoreError):
-        logger.exception("Failed to retrieve accounts")
-        return create_response(500, {"error": "Failed to retrieve accounts"})
-
-    if not items:
-        try:
-            identity = sts.get_caller_identity()
-            main_account_id = identity.get("Account", "unknown")
-            return create_response(
-                200,
-                {
-                    "accounts": [
-                        {
-                            "account_id": main_account_id,
-                            "account_name": "Main Account"
-                        }
-                    ],
-                    "total": 1
-                }
-            )
-        except (ClientError, BotoCoreError):
-            logger.exception("Failed to get caller identity fallback")
-            return create_response(500, {"error": "Failed to retrieve accounts"})
-
-    accounts = [
-        {
-            "account_id": item.get("account_id"),
-            "account_name": item.get("account_name")
-        }
-        for item in items
-    ]
-
+        logger.exception("Failed to retrieve registered accounts")
+        # Still return main account even if DynamoDB fails
+        pass
+    
     return create_response(
         200,
         {
@@ -233,7 +232,7 @@ def handle_get_accounts(event: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 def handle_delete_account(event: Dict[str, Any], account_id: str) -> Dict[str, Any]:
-    # Remove a registered account and log the deletion
+    """Remove a registered account and log the deletion."""
     session = require_authenticated_session(event)
     accounts_table = get_accounts_table()
 
@@ -274,7 +273,7 @@ def handle_delete_account(event: Dict[str, Any], account_id: str) -> Dict[str, A
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    # Main entry point; route requests to account handlers
+    """Main entry point; route requests to account handlers based on HTTP method and path."""
     try:
         method = event.get("httpMethod")
         if not method:

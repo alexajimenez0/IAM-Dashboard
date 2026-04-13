@@ -155,6 +155,7 @@ class SessionStoreError(Exception):
 
 
 def _cors_allowed_origins_set() -> set:
+    """Return the set of allowed origins from the CORS_ALLOWED_ORIGINS environment variable."""
     raw = os.environ.get('CORS_ALLOWED_ORIGINS', '')
     return {o.strip() for o in raw.split(',') if o.strip()}
 
@@ -256,9 +257,11 @@ def parse_request_cookies(event: Dict[str, Any]) -> Dict[str, str]:
     return parsed
 
 def get_accounts_table():
+    """Return the DynamoDB accounts table."""
     return dynamodb.Table(ACCOUNTS_TABLE_NAME)
 
 def get_registered_account(account_id: str) -> Optional[Dict[str, Any]]:
+    """Return the registered account record for the given account ID."""
     if not account_id:
         return None
 
@@ -271,6 +274,7 @@ def get_registered_account(account_id: str) -> Optional[Dict[str, Any]]:
     return result.get("Item")
 
 def get_scan_clients_for_account(account_id: Optional[str], region: str) -> Dict[str, Any]:
+    """Return scan clients for the main account or an assumed target account."""
     if not account_id or (MAIN_ACCOUNT_ID and account_id == MAIN_ACCOUNT_ID):
         return {
             "securityhub": boto3.client("securityhub", region_name=region),
@@ -674,21 +678,19 @@ def execute_scan(
     if not handler:
         raise ValueError(f"Unknown scanner type: {scanner_type}")
 
-    if scanner_type == "iam":
-        return handler(region, scan_params, scan_id, scan_clients)
+    return handler(region, scan_params, scan_id, scan_clients)
 
-    return handler(region, scan_params, scan_id)
-
-def scan_security_hub(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
+def scan_security_hub(region: str, scan_params: Dict[str, Any], scan_id: str, scan_clients: Dict[str, Any]) -> Dict[str, Any]:
     """Scan AWS Security Hub for findings"""
     try:
         logger.info(f"Scanning Security Hub in region: {region}")
         
+        securityhub_client = scan_clients["securityhub"]
         findings = []
         severity_filter = scan_params.get('severity', {})
         
         # Get findings
-        paginator = securityhub.get_paginator('get_findings')
+        paginator = securityhub_client.get_paginator('get_findings')
         page_iterator = paginator.paginate(
             Filters={
                 'SeverityLabel': severity_filter if severity_filter else [
@@ -744,13 +746,14 @@ def scan_security_hub(region: str, scan_params: Dict[str, Any], scan_id: str) ->
             }
 
 
-def scan_guardduty(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
+def scan_guardduty(region: str, scan_params: Dict[str, Any], scan_id: str, scan_clients: Dict[str, Any]) -> Dict[str, Any]:
     """Scan AWS GuardDuty for threats"""
     try:
         logger.info(f"Scanning GuardDuty in region: {region}")
         
+        guardduty_client = scan_clients["guardduty"]
         # List detectors
-        detectors = guardduty.list_detectors()
+        detectors = guardduty_client.list_detectors()
         detector_ids = detectors.get('DetectorIds', [])
         
         if not detector_ids:
@@ -762,7 +765,7 @@ def scan_guardduty(region: str, scan_params: Dict[str, Any], scan_id: str) -> Di
         findings = []
         for detector_id in detector_ids:
             # Get findings
-            paginator = guardduty.get_paginator('list_findings')
+            paginator = guardduty_client.get_paginator('list_findings')
             page_iterator = paginator.paginate(
                 DetectorId=detector_id,
                 FindingCriteria={
@@ -795,11 +798,12 @@ def scan_guardduty(region: str, scan_params: Dict[str, Any], scan_id: str) -> Di
         raise
 
 
-def scan_config(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
+def scan_config(region: str, scan_params: Dict[str, Any], scan_id: str, scan_clients: Dict[str, Any]) -> Dict[str, Any]:
     """Scan AWS Config for compliance"""
     try:
         logger.info(f"Scanning AWS Config in region: {region}")
         
+        config_client = scan_clients["config"]
         # Check if Config is enabled
         try:
             recorders = config.describe_configuration_recorders()
@@ -822,10 +826,10 @@ def scan_config(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[
                 }
         
         # Get compliance summary
-        compliance_summary = config.get_compliance_summary_by_config_rule()
+        compliance_summary = config_client.get_compliance_summary_by_config_rule()
         
         # Get config rules
-        rules = config.describe_config_rules()
+        rules = config_client.describe_config_rules()
         
         # Convert to JSON-serializable format
         compliance_summary_clean = json.loads(json.dumps(compliance_summary, default=json_serial))
@@ -852,20 +856,21 @@ def scan_config(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[
         raise
 
 
-def scan_inspector(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
+def scan_inspector(region: str, scan_params: Dict[str, Any], scan_id: str, scan_clients: Dict[str, Any]) -> Dict[str, Any]:
     """Scan AWS Inspector for vulnerabilities"""
     try:
         logger.info(f"Scanning AWS Inspector in region: {region}")
         
+        inspector_client = scan_clients["inspector"]
         # List findings (simplified - no filters to avoid validation issues)
         findings = []
         try:
             # List findings without complex filters
-            response = inspector.list_findings(maxResults=100)
+            response = inspector_client.list_findings(maxResults=100)
             finding_arns = response.get('findingArns', [])
             
             if finding_arns:
-                findings_response = inspector.batch_get_findings(
+                findings_response = inspector_client.batch_get_findings(
                     findingArns=finding_arns[:100]
                 )
                 findings.extend(findings_response.get('findings', []))
@@ -909,14 +914,15 @@ def scan_inspector(region: str, scan_params: Dict[str, Any], scan_id: str) -> Di
         raise
 
 
-def scan_macie(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
+def scan_macie(region: str, scan_params: Dict[str, Any], scan_id: str, scan_clients: Dict[str, Any]) -> Dict[str, Any]:
     """Scan AWS Macie for data security"""
     try:
         logger.info(f"Scanning AWS Macie in region: {region}")
         
+        macie_client = scan_clients["macie"]
         # List findings
         findings = []
-        paginator = macie.get_paginator('list_findings')
+        paginator = macie_client.get_paginator('list_findings')
         page_iterator = paginator.paginate(
             findingCriteria={
                 'criterion': {
@@ -930,7 +936,7 @@ def scan_macie(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[s
         for page in page_iterator:
             finding_ids = page.get('findingIds', [])
             if finding_ids:
-                findings_response = macie.get_findings(findingIds=finding_ids[:100])
+                findings_response = macie_client.get_findings(findingIds=finding_ids[:100])
                 findings.extend(findings_response.get('findings', []))
         
         return {
@@ -1462,13 +1468,12 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str, scan_client
         }
 
 
-def scan_ec2(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
+def scan_ec2(region: str, scan_params: Dict[str, Any], scan_id: str, scan_clients: Dict[str, Any]) -> Dict[str, Any]:
     """Scan EC2 instances for security issues"""
     try:
         logger.info(f"Scanning EC2 in region: {region}")
         
-        # Set region for EC2 client
-        ec2_regional = boto3.client('ec2', region_name=region)
+        ec2_regional = scan_clients["ec2"]
         
         # Describe instances
         response = ec2_regional.describe_instances()
@@ -1489,7 +1494,8 @@ def scan_ec2(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
         low_findings = 0
         
         # Get account ID
-        account_id = sts.get_caller_identity().get('Account', 'N/A')
+        sts_client = scan_clients["sts"]
+        account_id = sts_client.get_caller_identity().get('Account', 'N/A')
         
         for instance in instances:
             instance_id = instance.get('InstanceId', 'N/A')
@@ -1623,13 +1629,14 @@ def scan_ec2(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
         }
 
 
-def scan_s3(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
+def scan_s3(region: str, scan_params: Dict[str, Any], scan_id: str, scan_clients: Dict[str, Any]) -> Dict[str, Any]:
     """Scan S3 buckets for security issues"""
     try:
         logger.info(f"Scanning S3 in region: {region}")
         
+        s3_regional = scan_clients["s3"]
         # List buckets
-        buckets = s3_client.list_buckets()
+        buckets = s3_regional.list_buckets()
         bucket_list = buckets.get('Buckets', [])
         
         # Analyze buckets and generate findings
@@ -1642,7 +1649,8 @@ def scan_s3(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str,
         low_findings = 0
         
         # Get account ID
-        account_id = sts.get_caller_identity().get('Account', 'N/A')
+        sts_client = scan_clients["sts"]
+        account_id = sts_client.get_caller_identity().get('Account', 'N/A')
         
         for bucket in bucket_list:
             bucket_name = bucket['Name']
@@ -1651,7 +1659,7 @@ def scan_s3(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str,
             try:
                 # Check public access block
                 try:
-                    public_access = s3_client.get_public_access_block(Bucket=bucket_name)
+                    public_access = s3_regional.get_public_access_block(Bucket=bucket_name)
                     pab_config = public_access.get('PublicAccessBlockConfiguration', {})
                     
                     if not pab_config.get('BlockPublicAcls') or not pab_config.get('BlockPublicPolicy'):
@@ -1683,7 +1691,7 @@ def scan_s3(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str,
                 
                 # Check encryption
                 try:
-                    encryption = s3_client.get_bucket_encryption(Bucket=bucket_name)
+                    encryption = s3_regional.get_bucket_encryption(Bucket=bucket_name)
                     encryption_config = encryption.get('ServerSideEncryptionConfiguration', {})
                     rules = encryption_config.get('Rules', [])
                     if not rules:
@@ -1715,7 +1723,7 @@ def scan_s3(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str,
                 
                 # Check versioning
                 try:
-                    versioning = s3_client.get_bucket_versioning(Bucket=bucket_name)
+                    versioning = s3_regional.get_bucket_versioning(Bucket=bucket_name)
                     if versioning.get('Status') != 'Enabled':
                         medium_findings += 1
                         findings.append({
@@ -1783,7 +1791,7 @@ def scan_s3(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str,
         }
 
 
-def scan_full(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
+def scan_full(region: str, scan_params: Dict[str, Any], scan_id: str, scan_clients: Dict[str, Any]) -> Dict[str, Any]:
     """Execute full security scan across all services - GUARANTEED TO COMPLETE"""
     logger.info(f"Executing full security scan in region: {region}")
     
@@ -1806,7 +1814,7 @@ def scan_full(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[st
     for scanner_name, scanner_func in scanners:
         try:
             logger.info(f"Scanning {scanner_name}...")
-            result = scanner_func(region, scan_params, scan_id)
+            result = scanner_func(region, scan_params, scan_id, scan_clients)
             
             # Validate result is a dict
             if not isinstance(result, dict):
