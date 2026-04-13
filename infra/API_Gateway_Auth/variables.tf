@@ -62,14 +62,3 @@ variable "lambda_function_arn" {
   type        = string
 }
 
-variable "throttling_burst_limit" {
-  description = "Stage burst limit for this standalone auth HTTP API (RPS bucket)."
-  type        = number
-  default     = 70
-}
-
-variable "throttling_rate_limit" {
-  description = "Steady-state requests per second for this auth API stage."
-  type        = number
-  default     = 35
-}
