@@ -464,6 +464,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             scanner_type = event.get('scanner_type', '')
             region = event.get('region', 'us-east-1')
             scan_params = event.get('scan_parameters', {})
+            account_id = event.get('account_id')
         
         # Validate scanner type
         valid_scanners = ['security-hub', 'guardduty', 'config', 'inspector', 'macie', 'iam', 'ec2', 's3', 'full']
