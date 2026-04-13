@@ -478,13 +478,17 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             require_groups(session, scanner_type)
             
         account_name = None
-        if account_id:
+        is_main_account = bool(account_id and MAIN_ACCOUNT_ID and account_id == MAIN_ACCOUNT_ID)
+
+        if account_id and not is_main_account:
             registered_account = get_registered_account(account_id)
             if not registered_account:
                 return create_response(404, {
                     "error": f"Account {account_id} is not registered"
                 }, event)
             account_name = registered_account.get("account_name")
+        elif is_main_account:
+            account_name = "Main Account"
         
         scan_clients = get_scan_clients_for_account(account_id, region)
 
