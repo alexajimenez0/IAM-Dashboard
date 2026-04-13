@@ -61,14 +61,15 @@ variable "cors_allowed_headers" {
   default     = ["Content-Type", "Authorization", "X-Requested-With"]
 }
 
+# Stage default_route_settings apply to individual scan routes (POST /scan/* except /scan/full).
 variable "throttling_burst_limit" {
-  description = "API Gateway throttling burst limit"
+  description = "Burst limit (concurrent bucket) for individual scan routes; steady rate is throttling_rate_limit RPS."
   type        = number
   default     = 50
 }
 
 variable "throttling_rate_limit" {
-  description = "API Gateway throttling rate limit"
+  description = "Steady-state requests per second for individual scan routes (POST /scan/* except /scan/full)."
   type        = number
   default     = 25
 }
