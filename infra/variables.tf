@@ -64,7 +64,7 @@ variable "cognito_domain_prefix" {
 variable "kms_key_id" {
   description = "ID or alias of the existing KMS key (e.g. alias/iamdash-prod-logs)"
   type        = string
-  default     = ""
+  default     = "arn:aws:kms:us-east-1:562559071105:key/9fa1e2a4-3ed2-4c6d-a2b4-4542904f47cc"
   validation {
     condition     = length(var.kms_key_id) > 0
     error_message = "kms_key_id must be set via TF_VAR_kms_key_id, terraform.tfvars, or environment-specific configuration."
@@ -106,3 +106,34 @@ variable "auth_lambda_function_name" {
   type        = string
   default     = "test-BFF"
 }
+
+variable "accounts_table_name" {
+  description = "Name of the DynamoDB table that stores registered AWS accounts for multi-account scanning."
+  type        = string
+  default     = "iam-dashboard-accounts"
+}
+
+variable "account_mgmt_lambda_function_name" {
+  description = "Name of the account management Lambda function"
+  type        = string
+  default     = "iam-dashboard-account-mgmt"
+}
+
+variable "account_mgmt_lambda_role_name" {
+  description = "Name of the IAM execution role for the account management Lambda"
+  type        = string
+  default     = "iam-dashboard-account-mgmt-role"
+}
+
+variable "cross_account_role_name" {
+  description = "Name of the cross-account IAM role to assume in member accounts"
+  type        = string
+  default     = "iam-dashboard-scan-role"
+}
+
+variable "cross_account_role_arn_pattern" {
+  description = "Resource ARN pattern for sts:AssumeRole on cross-account scan roles"
+  type        = string
+  default     = "arn:aws:iam::*:role/iam-dashboard-scan-role"
+}
+
