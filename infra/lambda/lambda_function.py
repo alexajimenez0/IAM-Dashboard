@@ -407,6 +407,64 @@ def require_groups(session: Dict[str, Any], scanner_type: str) -> None:
     raise ForbiddenError('Forbidden.')
 
 
+def _http_request_audit_context(event: Dict[str, Any]) -> Dict[str, Any]:
+    """Correlation and client context from API Gateway for audit logs."""
+    ctx: Dict[str, Any] = {}
+    rc = event.get('requestContext') or {}
+    if not isinstance(rc, dict):
+        return ctx
+    ctx['request_id'] = rc.get('requestId')
+    http = rc.get('http') or {}
+    if isinstance(http, dict):
+        if http.get('sourceIp'): ctx['source_ip'] = http.get('sourceIp')
+        if http.get('userAgent'): ctx['user_agent'] = http.get('userAgent')
+        if http.get('method'): ctx['http_method'] = http.get('method')
+        if http.get('path'): ctx['path'] = http.get('path')
+    ident = rc.get('identity') or {}
+    if isinstance(ident, dict):
+        if 'source_ip' not in ctx and ident.get('sourceIp'): ctx['source_ip'] = ident.get('sourceIp')
+        if 'user_agent' not in ctx and ident.get('userAgent'): ctx['user_agent'] = ident.get('userAgent')
+    return {k: v for k, v in ctx.items() if v is not None}
+
+
+def emit_sensitive_audit_record(
+    action: str,
+    *,
+    actor_username: Optional[str] = None,
+    actor_groups: Optional[list] = None,
+    resource: str = '',
+    details: Optional[Dict[str, Any]] = None,
+    http_context: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Emit one JSON audit record to CloudWatch Logs. Prefix: SENSITIVE_AUDIT"""
+    record: Dict[str, Any] = {
+        'audit_schema': 'iamdash_sensitive_action_v1',
+        'timestamp_utc': datetime.utcnow().isoformat() + 'Z',
+        'action': action,
+        'resource': resource,
+        'actor_username': actor_username,
+        'environment': ENVIRONMENT,
+        'project': PROJECT_NAME,
+        'details': details or {},
+    }
+    if actor_groups is not None:
+        record['actor_groups'] = actor_groups
+    if http_context:
+        record['http'] = http_context
+    try:
+        logger.info('SENSITIVE_AUDIT %s', json.dumps(record, default=json_serial))
+    except (TypeError, ValueError) as exc:
+        logger.warning('SENSITIVE_AUDIT serialization failed: %s', exc)
+
+
+def _target_account_from_scan_params(params: Dict[str, Any]) -> Optional[str]:
+    """Extract account_id from scan params for audit context."""
+    raw = params.get('account_id') if isinstance(params.get('account_id'), str) else params.get('accountId')
+    if isinstance(raw, str) and raw.strip():
+        return raw.strip()
+    return None
+
+
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Main Lambda handler for security scanning
@@ -474,10 +532,42 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'error': f'Invalid scanner type. Must be one of: {", ".join(valid_scanners)}'
             })
 
+        session: Optional[Dict[str, Any]] = None
         if is_http_request:
-            session = require_authenticated_session(event)
-            require_groups(session, scanner_type)
-            
+            http_audit_ctx = _http_request_audit_context(event)
+            session = get_request_session(event)
+            target_account = _target_account_from_scan_params(scan_params)
+            if not session:
+                emit_sensitive_audit_record(
+                    'scan_access_denied',
+                    resource=f'scan:{scanner_type}',
+                    details={
+                        'reason': 'unauthenticated',
+                        'scanner_type': scanner_type,
+                        'region': region,
+                        'target_account_id': target_account,
+                    },
+                    http_context=http_audit_ctx,
+                )
+                raise UnauthorizedError('Authentication required.')
+            try:
+                require_groups(session, scanner_type)
+            except ForbiddenError:
+                emit_sensitive_audit_record(
+                    'scan_access_denied',
+                    actor_username=session.get('username') if isinstance(session.get('username'), str) else None,
+                    actor_groups=normalize_groups(session.get('groups')),
+                    resource=f'scan:{scanner_type}',
+                    details={
+                        'reason': 'insufficient_privilege',
+                        'scanner_type': scanner_type,
+                        'region': region,
+                        'target_account_id': target_account,
+                    },
+                    http_context=http_audit_ctx,
+                )
+                raise
+
         account_name = None
         is_main_account = bool(account_id and MAIN_ACCOUNT_ID and account_id == MAIN_ACCOUNT_ID)
 
@@ -495,6 +585,34 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         # Execute scan
         scan_id = f"{scanner_type}-{datetime.utcnow().isoformat()}"
+        target_account = account_id or MAIN_ACCOUNT_ID
+        if is_http_request and session is not None:
+            emit_sensitive_audit_record(
+                'scan_triggered',
+                actor_username=session.get('username') if isinstance(session.get('username'), str) else None,
+                actor_groups=normalize_groups(session.get('groups')),
+                resource=f'scan:{scanner_type}',
+                details={
+                    'scanner_type': scanner_type,
+                    'region': region,
+                    'scan_id': scan_id,
+                    'target_account_id': target_account,
+                },
+                http_context=_http_request_audit_context(event),
+            )
+        elif not is_http_request:
+            emit_sensitive_audit_record(
+                'scan_triggered',
+                actor_username='lambda_direct_invocation',
+                resource=f'scan:{scanner_type}',
+                details={
+                    'scanner_type': scanner_type,
+                    'region': region,
+                    'scan_id': scan_id,
+                    'target_account_id': target_account,
+                    'invocation': 'direct',
+                },
+            )
         logger.info(f"Starting scan: {scan_id} for type: {scanner_type}")
         
         try:
