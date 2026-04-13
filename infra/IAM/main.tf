@@ -21,7 +21,7 @@ resource "aws_iam_role" "scan_role" {
         Effect = "Allow"
         Principal = {
           AWS = [
-            "arn:aws:iam::${var.main_account_id}:role/${scanner_lambda_role_name}",
+            "arn:aws:iam::${var.main_account_id}:role/${var.scanner_lambda_role_name}",
             "arn:aws:iam::${var.main_account_id}:role/${var.account_management_lambda_role_name}"
           ]
         }
