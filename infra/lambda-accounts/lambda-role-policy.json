@@ -1,0 +1,56 @@
+{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Action": [
+				"logs:CreateLogGroup",
+				"logs:CreateLogStream",
+				"logs:PutLogEvents"
+			],
+			"Effect": "Allow",
+			"Resource": "arn:aws:logs:*:*:*",
+			"Sid": "CloudWatchLogs"
+		},
+		{
+			"Action": [
+				"dynamodb:PutItem",
+				"dynamodb:GetItem",
+				"dynamodb:DeleteItem",
+				"dynamodb:Scan"
+			],
+			"Effect": "Allow",
+			"Resource": "arn:aws:dynamodb:us-east-1:562559071105:table/iam-dashboard-accounts-test",
+			"Sid": "DynamoDBAccounts"
+		},
+		{
+			"Action": [
+				"dynamodb:GetItem"
+			],
+			"Effect": "Allow",
+			"Resource": "arn:aws:dynamodb:us-east-1:562559071105:table/iam-dashboard-auth-sessions-test",
+			"Sid": "DynamoDBAuthSessions"
+		},
+		{
+			"Action": "sts:AssumeRole",
+			"Effect": "Allow",
+			"Resource": "arn:aws:iam::*:role/iam-dashboard-scan-role",
+			"Sid": "STSAssumeRole"
+		},
+		{
+			"Action": "sts:GetCallerIdentity",
+			"Effect": "Allow",
+			"Resource": "*",
+			"Sid": "STSCallerIdentity"
+		},
+		{
+			"Action": [
+				"kms:Decrypt",
+				"kms:GenerateDataKey",
+				"kms:DescribeKey"
+			],
+			"Effect": "Allow",
+			"Resource": "arn:aws:kms:us-east-1:562559071105:key/9fa1e2a4-3ed2-4c6d-a2b4-4542904f47cc",
+			"Sid": "KMSDecrypt"
+		}
+	]
+}
