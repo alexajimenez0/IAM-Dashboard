@@ -125,6 +125,18 @@
       "Resource": "*"
     },
     {
+			"Action": "sts:AssumeRole",
+			"Effect": "Allow",
+			"Resource": "arn:aws:iam::*:role/iam-dashboard-scan-role",
+			"Sid": "STSAssumeRole"
+		},
+		{
+			"Action": "sts:GetCallerIdentity",
+			"Effect": "Allow",
+			"Resource": "*",
+			"Sid": "STSCallerIdentity"
+		},
+    {
       "Effect": "Allow",
       "Action": [
         "ec2:DescribeInstances",
