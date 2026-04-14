@@ -38,6 +38,7 @@ from api.ir import (
 )
 from api.tts import TTSSynthesizeResource
 from api.voice_intent import VoiceIntentResource
+from api.signup import SignupWelcomeEmailResource
 
 # Import services
 from services.aws_service import AWSService
@@ -114,6 +115,7 @@ def create_app():
     api.add_resource(IRAuditResource,             '/ir/audit')
     api.add_resource(TTSSynthesizeResource,       '/tts/synthesize')
     api.add_resource(VoiceIntentResource,         '/voice/intent')
+    api.add_resource(SignupWelcomeEmailResource,  '/signup/welcome-email')
 
     # Serve static files (React frontend)
     @app.route('/')

@@ -27,6 +27,7 @@ function AppRouter() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/about" element={<AboutPage />} />
       <Route path="/login" element={auth.isAuthenticated ? <Navigate replace to="/app" /> : <LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
       <Route path="/app" element={auth.isAuthenticated ? <DashboardApp /> : <Navigate replace to="/login" />} />
       <Route path="/dashboard" element={<Navigate replace to="/app" />} />
       <Route path="*" element={<Navigate replace to="/" />} />
