@@ -23,9 +23,11 @@ CROSS_ACCOUNT_ROLE_NAME = os.environ.get("CROSS_ACCOUNT_ROLE_NAME", "iam-dashboa
 class UnauthorizedError(Exception):
     """Raised when the request does not have a valid authenticated session."""
 
-
 class SessionStoreError(Exception):
     """Raised when session storage cannot be read safely."""
+
+class ForbiddenError(Exception):
+    """Raised when the authenticated session lacks required groups."""
 
 
 def create_response(status_code: int, body: Dict[str, Any]) -> Dict[str, Any]:
@@ -114,6 +116,21 @@ def require_authenticated_session(event: Dict[str, Any]) -> Dict[str, Any]:
     if not session:
         raise UnauthorizedError("Authentication required.")
     return session
+
+def normalize_groups(groups: Any) -> list[str]:
+    """Normalize session groups into a list of strings."""
+    if isinstance(groups, str):
+        groups = [groups]
+    if not isinstance(groups, list):
+        return []
+    return [str(group) for group in groups if str(group).strip()]
+
+def require_groups(session: Dict[str, Any], scanner_type: str) -> None:
+    """Require that the authenticated session has a group permitted to run scanner_type."""
+    groups = set(normalize_groups(session.get('groups')))
+    if 'admin' in groups:
+        return
+    raise ForbiddenError('Forbidden.')
 
 
 def handle_post_accounts(event: Dict[str, Any]) -> Dict[str, Any]:
