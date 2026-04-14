@@ -89,7 +89,10 @@ module "lambda" {
   lambda_kms_key_arn   = data.aws_kms_key.logs.arn
 
   lambda_environment_variables = {
-    CORS_ALLOWED_ORIGINS = join(",", var.allowed_urls)
+    CORS_ALLOWED_ORIGINS    = join(",", var.allowed_urls)
+    ACCOUNTS_TABLE_NAME     = module.dynamodb.accounts_table_name
+    CROSS_ACCOUNT_ROLE_NAME = var.cross_account_role_name
+    MAIN_ACCOUNT_ID         = var.main_account_id
   }
 }
 

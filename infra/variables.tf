@@ -137,3 +137,9 @@ variable "cross_account_role_arn_pattern" {
   default     = "arn:aws:iam::*:role/iam-dashboard-scan-role"
 }
 
+
+variable "main_account_id" {
+  description = "AWS account ID where the scanner and account-management Lambdas run."
+  type        = string
+  sensitive   = true
+}
