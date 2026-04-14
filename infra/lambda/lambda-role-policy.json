@@ -6,7 +6,8 @@
       "Action": [
         "logs:CreateLogGroup",
         "logs:CreateLogStream",
-        "logs:PutLogEvents"
+        "logs:PutLogEvents",
+        "cloudwatch:PutMetricData"
       ],
       "Resource": "arn:aws:logs:*:*:*"
     },
@@ -75,7 +76,8 @@
         "config:GetComplianceSummaryByConfigRule",
         "config:GetComplianceSummaryByResourceType",
         "config:DescribeComplianceByConfigRule",
-        "config:DescribeComplianceByResource"
+        "config:DescribeComplianceByResource",
+        "config:DescribeConfigurationRecorders"
       ],
       "Resource": "*"
     },

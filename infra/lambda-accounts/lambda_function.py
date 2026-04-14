@@ -125,17 +125,17 @@ def normalize_groups(groups: Any) -> list[str]:
         return []
     return [str(group) for group in groups if str(group).strip()]
 
-def require_groups(session: Dict[str, Any], scanner_type: str) -> None:
-    """Require that the authenticated session has a group permitted to run scanner_type."""
-    groups = set(normalize_groups(session.get('groups')))
-    if 'admin' in groups:
-        return
-    raise ForbiddenError('Forbidden.')
+def require_admin(session: Dict[str, Any]) -> None:
+    """Require that the authenticated session belongs to the admin group."""
+    groups = set(normalize_groups(session.get("groups")))
+    if "admin" not in groups:
+        raise ForbiddenError("Forbidden.")
 
 
 def handle_post_accounts(event: Dict[str, Any]) -> Dict[str, Any]:
     """Register a new AWS account after validating the request and role existence."""
     session = require_authenticated_session(event)
+    require_admin(session)
 
     try:
         body = json.loads(event.get("body", "{}")) if event.get("body") else {}
@@ -225,8 +225,15 @@ def handle_get_accounts(event: Dict[str, Any]) -> Dict[str, Any]:
     
     # Add registered accounts from DynamoDB, avoiding duplicates
     try:
-        response = accounts_table.scan()
-        items = response.get("Items", [])
+        items = []
+        scan_kwargs = {}
+        while True:
+            response = accounts_table.scan(**scan_kwargs)
+            items.extend(response.get("Items", []))
+            last_key = response.get("LastEvaluatedKey")
+            if not last_key:
+                break
+            scan_kwargs["ExclusiveStartKey"] = last_key
         for item in items:
             account_id = item.get("account_id")
             # Skip if it's the main account (already added)
@@ -250,6 +257,7 @@ def handle_get_accounts(event: Dict[str, Any]) -> Dict[str, Any]:
 def handle_delete_account(event: Dict[str, Any], account_id: str) -> Dict[str, Any]:
     """Remove a registered account and log the deletion."""
     session = require_authenticated_session(event)
+    require_admin(session)
     accounts_table = get_accounts_table()
 
     try:
@@ -313,6 +321,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     except UnauthorizedError:
         return create_response(401, {"error": "Authentication required"})
+    except ForbiddenError:
+        return create_response(403, {"error": "Forbidden, you do not have sufficient permissions!"})
     except SessionStoreError:
         return create_response(500, {"error": "Unable to process request"})
     except Exception as exc:
