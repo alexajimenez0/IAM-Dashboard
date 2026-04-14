@@ -39,6 +39,7 @@ from api.ir import (
 from api.tts import TTSSynthesizeResource
 from api.voice_intent import VoiceIntentResource
 from api.signup import SignupWelcomeEmailResource
+from api.password_reset import ForgotPasswordResource, ResetPasswordResource
 
 # Import services
 from services.aws_service import AWSService
@@ -116,6 +117,8 @@ def create_app():
     api.add_resource(TTSSynthesizeResource,       '/tts/synthesize')
     api.add_resource(VoiceIntentResource,         '/voice/intent')
     api.add_resource(SignupWelcomeEmailResource,  '/signup/welcome-email')
+    api.add_resource(ForgotPasswordResource,     '/forgot-password')
+    api.add_resource(ResetPasswordResource,      '/reset-password')
 
     # Serve static files (React frontend)
     @app.route('/')
