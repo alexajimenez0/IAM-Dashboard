@@ -21,15 +21,17 @@ logger = logging.getLogger(__name__)
 
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "local-dev-secret-change-me")
+
+# Secret key for signing password reset tokens (should be kept safe in prod!)
+PASSWORD_RESET_TOKEN_SECRET = os.environ.get("PASSWORD_RESET_TOKEN_SECRET", "local-dev-secret-change-me")
 RESET_TOKEN_MAX_AGE = int(os.environ.get("RESET_TOKEN_MAX_AGE", "3600"))
 APP_URL = os.environ.get("LOCAL_APP_URL", "http://localhost:3001")
 
-serializer = URLSafeTimedSerializer(SECRET_KEY, salt="password-reset")
+serializer = URLSafeTimedSerializer(PASSWORD_RESET_TOKEN_SECRET, salt="password-reset")
 
-
+# Handles password reset requests: sends reset email with tokenized link, verifies tokens, and updates passwords.
 class ForgotPasswordResource(Resource):
-
+    # Handles POST requests to /api/v1/forgot-password
     def post(self):
         payload = request.get_json(silent=True) or {}
         email = (payload.get("email") or "").strip().lower()
