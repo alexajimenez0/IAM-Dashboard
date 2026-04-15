@@ -4,10 +4,13 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
 import { useScanResults } from './ScanResultsContext';
+import { useAuth } from './AuthContext';
+import { getAccounts } from '../services/accounts';
 
 export interface AwsConnectedAccount {
   id: string;
@@ -16,47 +19,22 @@ export interface AwsConnectedAccount {
 }
 
 const STORAGE_SELECTED = 'iam-dashboard-selected-aws-account';
+const DATA_MODE = (import.meta.env.VITE_DATA_MODE || 'live').toLowerCase();
+const IS_MOCK = DATA_MODE === 'mock';
 
-/** Mock connections until the backend provides a real list. IDs align with scan storage keys. */
+/** Mock connections used in mock mode. IDs align with scan storage keys. */
 export const MOCK_AWS_ACCOUNTS: AwsConnectedAccount[] = [
   { id: 'mock-prod', label: 'Production', accountId: '111122223333' },
   { id: 'mock-staging', label: 'Staging', accountId: '222233334444' },
   { id: 'mock-dev', label: 'Development', accountId: '333344445555' },
 ];
 
-function parseAccountsFromEnv(): AwsConnectedAccount[] {
-  const raw = import.meta.env.VITE_AWS_ACCOUNTS as string | undefined;
-  if (raw === undefined || raw.trim() === '') {
-    return MOCK_AWS_ACCOUNTS;
-  }
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
-      return MOCK_AWS_ACCOUNTS;
-    }
-    if (parsed.length === 0) {
-      return [];
-    }
-    const mapped: AwsConnectedAccount[] = [];
-    for (let i = 0; i < parsed.length; i++) {
-      const row = parsed[i] as Record<string, unknown>;
-      const id =
-        typeof row.id === 'string' && row.id.trim()
-          ? row.id.trim()
-          : `account-${i}`;
-      const label =
-        typeof row.label === 'string' && row.label.trim()
-          ? row.label.trim()
-          : id;
-      const accountId =
-        typeof row.accountId === 'string' ? row.accountId.trim() : '';
-      mapped.push({ id, label, accountId });
-    }
-    return mapped.length > 0 ? mapped : [];
-  } catch {
-    return MOCK_AWS_ACCOUNTS;
-  }
-}
+/** Fallback used in live mode when GET /accounts fails or returns nothing. */
+const FALLBACK_MAIN_ACCOUNT: AwsConnectedAccount = {
+  id: 'main',
+  label: 'Main Account',
+  accountId: '',
+};
 
 function readStoredSelectedId(): string | null {
   try {
@@ -77,9 +55,11 @@ function writeStoredSelectedId(id: string): void {
 
 interface AwsAccountContextValue {
   accounts: AwsConnectedAccount[];
-  /** Null when no accounts are connected */
   selectedAccount: AwsConnectedAccount | null;
   selectAccount: (id: string) => void;
+  isLoadingAccounts: boolean;
+  accountsError: string | null;
+  refreshAccounts: () => Promise<void>;
 }
 
 const AwsAccountContext = createContext<AwsAccountContextValue | undefined>(
@@ -88,40 +68,103 @@ const AwsAccountContext = createContext<AwsAccountContextValue | undefined>(
 
 export function AwsAccountProvider({ children }: { children: ReactNode }) {
   const { ensureMockFullScanIfEmpty } = useScanResults();
-  const accounts = useMemo(() => parseAccountsFromEnv(), []);
+  const auth = useAuth();
 
-  const initialId = useMemo(() => {
-    if (accounts.length === 0) return null;
+  const [accounts, setAccounts] = useState<AwsConnectedAccount[]>(
+    IS_MOCK ? MOCK_AWS_ACCOUNTS : [FALLBACK_MAIN_ACCOUNT],
+  );
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    const initial = IS_MOCK ? MOCK_AWS_ACCOUNTS : [FALLBACK_MAIN_ACCOUNT];
+    if (initial.length === 0) return null;
     const stored = readStoredSelectedId();
-    if (stored && accounts.some((a: AwsConnectedAccount) => a.id === stored))
-      return stored;
-    return accounts[0].id;
-  }, [accounts]);
+    if (stored && initial.some((a) => a.id === stored)) return stored;
+    return initial[0].id;
+  });
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(!IS_MOCK);
+  const [accountsError, setAccountsError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
-  const [selectedId, setSelectedId] = useState<string | null>(initialId);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
+  const loadAccounts = useCallback(async () => {
+    if (IS_MOCK || !auth.isAuthenticated) return;
+
+    setIsLoadingAccounts(true);
+    setAccountsError(null);
+
+    try {
+      const response = await getAccounts();
+      if (!mountedRef.current) return;
+
+      const raw = Array.isArray(response?.accounts) ? response.accounts : [];
+      const mapped: AwsConnectedAccount[] = raw.map((a) => ({
+        id: a.account_id,
+        label: a.account_name || a.account_id,
+        accountId: a.account_id,
+      }));
+
+      const next = mapped.length > 0 ? mapped : [FALLBACK_MAIN_ACCOUNT];
+      setAccounts(next);
+
+      setSelectedId((prev) => {
+        const stored = prev ?? readStoredSelectedId();
+        if (stored && next.some((a) => a.id === stored)) return stored;
+        const first = next[0].id;
+        writeStoredSelectedId(first);
+        return first;
+      });
+    } catch (err) {
+      if (!mountedRef.current) return;
+      const msg = err instanceof Error ? err.message : 'Unable to load AWS accounts.';
+      setAccountsError(msg);
+      setAccounts([FALLBACK_MAIN_ACCOUNT]);
+      setSelectedId((prev) => {
+        if (prev === FALLBACK_MAIN_ACCOUNT.id) return prev;
+        writeStoredSelectedId(FALLBACK_MAIN_ACCOUNT.id);
+        return FALLBACK_MAIN_ACCOUNT.id;
+      });
+    } finally {
+      if (mountedRef.current) setIsLoadingAccounts(false);
+    }
+  }, [auth.isAuthenticated]);
+
+  // Load accounts once auth is ready in live mode
+  useEffect(() => {
+    if (IS_MOCK || auth.isLoading) return;
+    if (auth.isAuthenticated) {
+      void loadAccounts();
+    } else {
+      setIsLoadingAccounts(false);
+    }
+  }, [auth.isLoading, auth.isAuthenticated, loadAccounts]);
+
+  // Keep selectedId valid when accounts list changes
   useEffect(() => {
     if (accounts.length === 0) {
       setSelectedId(null);
       return;
     }
-    if (
-      selectedId === null ||
-      !accounts.some((a: AwsConnectedAccount) => a.id === selectedId)
-    ) {
-      const next = accounts[0].id;
-      setSelectedId(next);
-      writeStoredSelectedId(next);
-    }
-  }, [accounts, selectedId]);
+    setSelectedId((prev) => {
+      if (prev && accounts.some((a) => a.id === prev)) return prev;
+      const first = accounts[0].id;
+      writeStoredSelectedId(first);
+      return first;
+    });
+  }, [accounts]);
 
-  const selectedAccount = useMemo(() => {
-    if (selectedId === null) return null;
-    return accounts.find((a: AwsConnectedAccount) => a.id === selectedId) ?? null;
-  }, [accounts, selectedId]);
+  const selectedAccount = useMemo(
+    () => (selectedId ? (accounts.find((a) => a.id === selectedId) ?? null) : null),
+    [accounts, selectedId],
+  );
 
+  // Seed mock scan data only in mock mode
   useEffect(() => {
-    if (!selectedAccount) return;
+    if (!IS_MOCK || !selectedAccount) return;
     ensureMockFullScanIfEmpty(
       selectedAccount.id,
       selectedAccount.accountId,
@@ -131,20 +174,28 @@ export function AwsAccountProvider({ children }: { children: ReactNode }) {
 
   const selectAccount = useCallback(
     (id: string) => {
-      if (!accounts.some((a: AwsConnectedAccount) => a.id === id)) return;
+      if (!accounts.some((a) => a.id === id)) return;
       setSelectedId(id);
       writeStoredSelectedId(id);
     },
     [accounts],
   );
 
+  const refreshAccounts = useCallback(async () => {
+    if (IS_MOCK) return;
+    await loadAccounts();
+  }, [loadAccounts]);
+
   const value = useMemo(
     () => ({
       accounts,
       selectedAccount,
       selectAccount,
+      isLoadingAccounts,
+      accountsError,
+      refreshAccounts,
     }),
-    [accounts, selectedAccount, selectAccount],
+    [accounts, selectedAccount, selectAccount, isLoadingAccounts, accountsError, refreshAccounts],
   );
 
   return (
