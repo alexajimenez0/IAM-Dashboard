@@ -22,8 +22,12 @@ logger = logging.getLogger(__name__)
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
-# Secret key for signing password reset tokens (should be kept safe in prod!)
-PASSWORD_RESET_TOKEN_SECRET = os.environ.get("PASSWORD_RESET_TOKEN_SECRET", "local-dev-secret-change-me")
+PASSWORD_RESET_TOKEN_SECRET = os.environ.get("PASSWORD_RESET_TOKEN_SECRET")
+if not PASSWORD_RESET_TOKEN_SECRET:
+    raise RuntimeError(
+        "PASSWORD_RESET_TOKEN_SECRET env var is required. "
+        "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+    )
 RESET_TOKEN_MAX_AGE = int(os.environ.get("RESET_TOKEN_MAX_AGE", "3600"))
 APP_URL = os.environ.get("LOCAL_APP_URL", "http://localhost:3001")
 
