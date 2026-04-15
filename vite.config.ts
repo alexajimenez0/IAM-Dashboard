@@ -74,6 +74,12 @@ export default defineConfig(async ({ mode }) => {
           rewrite: (requestPath) => `/v1${requestPath}`,
           headers: { 'Origin': 'http://localhost:3001' },
         },
+        '/accounts': {
+          target: 'https://erh3a09d7l.execute-api.us-east-1.amazonaws.com',
+          changeOrigin: true,
+          rewrite: (requestPath) => `/v1${requestPath}`,
+          headers: { 'Origin': 'http://localhost:3001' },
+        },
         '/api/v1': {
           target: flaskProxyTarget,
           changeOrigin: true,
