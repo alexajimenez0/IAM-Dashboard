@@ -17,6 +17,8 @@ from flask import request
 from flask_restful import Resource
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
+from api.validators import validate_password
+
 logger = logging.getLogger(__name__)
 
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
@@ -101,8 +103,10 @@ class ResetPasswordResource(Resource):
 
         if not token:
             return {"error": "Reset token is required."}, 400
-        if len(password) < 8:
-            return {"error": "Password must be at least 8 characters."}, 400
+
+        password_error = validate_password(password)
+        if password_error:
+            return {"error": password_error}, 400
 
         try:
             serializer.loads(token, max_age=RESET_TOKEN_MAX_AGE)
