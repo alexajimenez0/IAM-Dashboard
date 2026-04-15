@@ -112,8 +112,8 @@ class DatabaseService:
         statuses: Optional[Set[str]] = None,
     ) -> List[SecurityFinding]:
         """Filtered query for CSV export (PostgreSQL / SQLite)."""
+        session = self.get_session()
         try:
-            session = self.get_session()
             q = session.query(SecurityFinding)
             if severities:
                 q = q.filter(SecurityFinding.severity.in_(list(severities)))
@@ -129,7 +129,9 @@ class DatabaseService:
                             SecurityFinding.resolved.is_(False),
                             or_(
                                 SecurityFinding.status.is_(None),
-                                SecurityFinding.status != "SUPPRESSED",
+                                SecurityFinding.status.notin_(
+                                    ["SUPPRESSED", "RESOLVED", "CLOSED"]
+                                ),
                             ),
                         )
                     )
@@ -145,11 +147,15 @@ class DatabaseService:
                 if status_conds:
                     q = q.filter(or_(*status_conds))
             findings = q.order_by(SecurityFinding.created_at.desc()).all()
-            session.close()
             return findings
         except Exception as e:
             logger.error(f"Error querying security findings for export: {str(e)}")
-            return []
+            raise
+        finally:
+            try:
+                session.close()
+            except Exception:
+                pass
     
     def update_security_finding(self, finding_id: str, update_data: dict) -> bool:
         """Update security finding"""

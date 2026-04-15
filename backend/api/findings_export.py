@@ -150,10 +150,11 @@ def _filter_rows(
     return out
 
 
-def _sanitize_csv_cell(value: str) -> str:
-    if value and value[0] in "=+-@":
-        return "'" + value
-    return value
+def _sanitize_csv_cell(value) -> str:
+    text = "" if value is None else str(value)
+    if text[:1] in ("=", "+", "-", "@"):
+        return f"'{text}"
+    return text
 
 
 def _build_csv(rows: List[Dict[str, str]]) -> str:
@@ -161,7 +162,7 @@ def _build_csv(rows: List[Dict[str, str]]) -> str:
     writer = csv.DictWriter(buf, fieldnames=CSV_COLUMNS, extrasaction="ignore")
     writer.writeheader()
     for r in rows:
-        writer.writerow({k: _sanitize_csv_cell(str(v)) for k, v in r.items()})
+        writer.writerow({col: _sanitize_csv_cell(r.get(col)) for col in CSV_COLUMNS})
     return buf.getvalue()
 
 
@@ -169,20 +170,32 @@ def export_findings_csv():
     """GET /api/findings/export/csv — CSV of IAM/security findings."""
     severities_in = _parse_multi_args("severity")
     statuses_in = _parse_multi_args("status")
-    start = _parse_iso_datetime(request.args.get("start_date"))
-    end = _parse_iso_datetime(request.args.get("end_date"))
+    raw_start = request.args.get("start_date")
+    raw_end = request.args.get("end_date")
+    start = _parse_iso_datetime(raw_start)
+    end = _parse_iso_datetime(raw_end)
+
+    if raw_start is not None and raw_start.strip() and start is None:
+        return Response("Invalid start_date\n", status=400, mimetype="text/plain")
+    if raw_end is not None and raw_end.strip() and end is None:
+        return Response("Invalid end_date\n", status=400, mimetype="text/plain")
+
+    if severities_in:
+        invalid = [s for s in severities_in if s.upper() not in VALID_SEVERITIES]
+        if invalid:
+            return Response("Invalid severity\n", status=400, mimetype="text/plain")
+    if statuses_in:
+        invalid = [s for s in statuses_in if s.upper() not in VALID_STATUSES]
+        if invalid:
+            return Response("Invalid status\n", status=400, mimetype="text/plain")
 
     severities: Optional[Set[str]] = None
     if severities_in:
-        severities = {s.upper() for s in severities_in if s.upper() in VALID_SEVERITIES}
-        if not severities:
-            severities = None
+        severities = {s.upper() for s in severities_in}
 
     statuses: Optional[Set[str]] = None
     if statuses_in:
-        statuses = {s.upper() for s in statuses_in if s.upper() in VALID_STATUSES}
-        if not statuses:
-            statuses = None
+        statuses = {s.upper() for s in statuses_in}
 
     rows: List[Dict[str, str]] = []
 
@@ -207,14 +220,18 @@ def export_findings_csv():
             rows = _from_sql()
         except Exception as db_e:
             logger.error("PostgreSQL findings export failed: %s", db_e, exc_info=True)
-            rows = []
+            return Response(
+                "Export temporarily unavailable\n", status=500, mimetype="text/plain"
+            )
     except Exception as e:
         logger.error("Unexpected error loading DynamoDB findings: %s", e, exc_info=True)
         try:
             rows = _from_sql()
         except Exception as db_e:
             logger.error("PostgreSQL findings export failed: %s", db_e, exc_info=True)
-            rows = []
+            return Response(
+                "Export temporarily unavailable\n", status=500, mimetype="text/plain"
+            )
 
     csv_body = _build_csv(rows)
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")

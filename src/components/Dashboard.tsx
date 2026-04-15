@@ -1998,6 +1998,14 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                   onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.color = "rgba(100,116,139,0.7)"; }}
                 >Full Compliance View</button>
                 <button
+                  type="button"
+                  onClick={() => setExportDialogOpen(true)}
+                  style={{ fontSize: 11, fontWeight: 600, color: "rgba(0,255,136,0.85)", background: "rgba(0,255,136,0.06)", border: "1px solid rgba(0,255,136,0.22)", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.1s", display: "flex", alignItems: "center", gap: 6 }}
+                >
+                  <Download size={11} />
+                  Export CSV
+                </button>
+                <button
                   onClick={() => onNavigate?.("reports")}
                   style={{ fontSize: 11, fontWeight: 600, color: "#00ff88", background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.22)", borderRadius: 6, padding: "4px 16px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.1s" }}
                   onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,255,136,0.14)"; e.currentTarget.style.borderColor = "rgba(0,255,136,0.36)"; }}
@@ -2031,14 +2039,6 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
             {label}
           </button>
         ))}
-        <button
-          type="button"
-          onClick={() => setExportDialogOpen(true)}
-          style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 500, color: "rgba(0,255,136,0.85)", background: "rgba(0,255,136,0.06)", border: "1px solid rgba(0,255,136,0.22)", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.1s", lineHeight: 1.4 }}
-        >
-          <Download size={11} />
-          Export CSV
-        </button>
       </div>
 
       <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>

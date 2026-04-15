@@ -70,12 +70,10 @@ def require_jwt(view_func: Callable):
         if not secret:
             if os.environ.get("FLASK_ENV") == "development":
                 return view_func(*args, **kwargs)
+            logger.critical("JWT_SECRET is not configured")
             return (
                 jsonify(
-                    {
-                        "error": "Service Unavailable",
-                        "message": "JWT authentication is not configured",
-                    }
+                    {"error": "Service unavailable", "message": "JWT auth is not configured"}
                 ),
                 503,
             )
