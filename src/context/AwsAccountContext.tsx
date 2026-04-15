@@ -102,11 +102,16 @@ export function AwsAccountProvider({ children }: { children: ReactNode }) {
       if (!mountedRef.current) return;
 
       const raw = Array.isArray(response?.accounts) ? response.accounts : [];
-      const mapped: AwsConnectedAccount[] = raw.map((a) => ({
-        id: a.account_id,
-        label: a.account_name || a.account_id,
-        accountId: a.account_id,
-      }));
+      const mapped: AwsConnectedAccount[] = raw
+        .filter((a) => typeof a.account_id === 'string' && a.account_id.trim())
+        .map((a) => {
+          const accountId = a.account_id.trim();
+          const accountName =
+            typeof a.account_name === 'string' && a.account_name.trim()
+              ? a.account_name.trim()
+              : accountId;
+          return { id: accountId, label: accountName, accountId };
+        });
 
       const next = mapped.length > 0 ? mapped : [FALLBACK_MAIN_ACCOUNT];
       setAccounts(next);
