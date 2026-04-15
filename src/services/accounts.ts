@@ -90,7 +90,10 @@ export async function createAccount(
 
   return accountsRequest<CreateAccountResponse>("/accounts", {
     method: "POST",
-    body: JSON.stringify(request),
+    body: JSON.stringify({
+      account_id: request.account_id.trim(),
+      account_name: request.account_name.trim(),
+    }),
   });
 }
 
@@ -105,7 +108,7 @@ export async function deleteAccount(
   }
 
   return accountsRequest<DeleteAccountResponse>(
-    `/accounts/${encodeURIComponent(accountId)}`,
+    `/accounts/${encodeURIComponent(accountId.trim())}`,
     { method: "DELETE" }
   );
 }

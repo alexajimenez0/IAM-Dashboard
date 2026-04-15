@@ -137,12 +137,14 @@ export async function triggerScan(
   scannerType: ScannerType,
   request: ScanRequest = {}
 ): Promise<ScanResponse> {
+  const { account_id: _ignoredAccountId, ...scanParameters } = request.scan_parameters ?? {};
   const body: Record<string, any> = {
     region: request.region || 'us-east-1',
-    ...request.scan_parameters,
+    ...scanParameters,
   };
-  if (request.account_id && request.account_id.trim()) {
-    body.account_id = request.account_id.trim();
+  const accountId = request.account_id?.trim();
+  if (accountId) {
+    body.account_id = accountId;
   }
 
   return apiRequest<ScanResponse>(`/scan/${scannerType}`, {
