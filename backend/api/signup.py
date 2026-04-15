@@ -2,6 +2,7 @@
 Signup endpoint — sends a welcome email on successful form submission.
 """
 
+import html
 import logging
 import os
 import re
@@ -39,9 +40,10 @@ class SignupWelcomeEmailResource(Resource):
             "Thanks,\n"
             "AWS Cloud Security Dashboard"
         )
+        safe_name = html.escape(name)
         html_body = (
             '<html><body style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.5;">'
-            f"<h2>Welcome, {name}</h2>"
+            f"<h2>Welcome, {safe_name}</h2>"
             "<p>Your account has been created successfully on the "
             "AWS Cloud Security Dashboard.</p>"
             "<p>You can now sign in and start monitoring your cloud "
