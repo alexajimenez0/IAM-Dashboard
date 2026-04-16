@@ -26,8 +26,12 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
+# Create non-root user up front so subsequent COPYs can set ownership at copy
+# time rather than rewriting /app recursively later (avoids a large chown layer)
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
 # Copy requirements first for better caching
-COPY requirements.txt requirements-postgres.txt ./
+COPY --chown=appuser:appuser requirements.txt requirements-postgres.txt ./
 
 # Install system dependencies, Python packages, then remove build tools in a
 # single layer so compiler toolchain never bloats the final image.
@@ -45,17 +49,15 @@ RUN apt-get update -o Acquire::Retries=3 -o Acquire::ForceIPv4=true && \
         && apt-get purge -y --auto-remove build-essential gcc g++ \
         && rm -rf /var/lib/apt/lists/*
 
-# Copy Flask application
-COPY backend/ ./backend/
-COPY config/ ./config/
+# Copy Flask application with ownership set at copy time
+COPY --chown=appuser:appuser backend/ ./backend/
+COPY --chown=appuser:appuser config/ ./config/
 
-# Copy built frontend from previous stage
-COPY --from=frontend-builder /app/frontend/build ./static
+# Copy built frontend from previous stage with ownership set at copy time
+COPY --from=frontend-builder --chown=appuser:appuser /app/frontend/build ./static
 
-# Create non-root user, directories, and set ownership in one layer
-RUN groupadd -r appuser && useradd -r -g appuser appuser \
-    && mkdir -p logs data/uploads \
-    && chown -R appuser:appuser /app
+# Ensure writable runtime directories exist and are owned by appuser
+RUN mkdir -p logs data/uploads && chown appuser:appuser logs data/uploads
 
 # Switch to non-root user
 USER appuser
