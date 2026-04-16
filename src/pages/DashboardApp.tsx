@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Header } from "../components/Header";
 import { Sidebar } from "../components/Sidebar";
 import { Dashboard } from "../components/Dashboard";
@@ -21,6 +21,7 @@ import { ComplianceDashboard } from "../components/ComplianceDashboard";
 import { Toaster } from "../components/ui/sonner";
 import { ScanResultsProvider } from "../context/ScanResultsContext";
 import type { ReportRecord } from "../types/report";
+import { emitPageLoadMetric } from "../services/telemetry";
 
 export function DashboardApp() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -28,6 +29,10 @@ export function DashboardApp() {
 
   const handleFullScanComplete = useCallback((report: ReportRecord) => {
     setReportHistory((prev) => [report, ...prev]);
+  }, []);
+
+  useEffect(() => {
+    emitPageLoadMetric("dashboard");
   }, []);
 
   const renderContent = () => {

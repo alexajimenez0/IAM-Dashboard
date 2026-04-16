@@ -20,6 +20,7 @@ from api.grafana import GrafanaResource
 from api.dashboard import DashboardResource
 from api.health import HealthResource
 from api.metrics import MetricsResource, register_metrics_hooks
+from api.telemetry import TelemetryResource
 
 # Import services
 from services.aws_service import AWSService
@@ -63,6 +64,7 @@ def create_app():
     # Register API resources
     api.add_resource(HealthResource, '/health')
     api.add_resource(MetricsResource, '/metrics')
+    api.add_resource(TelemetryResource, '/telemetry')
     api.add_resource(DashboardResource, '/dashboard')
     api.add_resource(IAMResource, '/aws/iam')
     api.add_resource(EC2Resource, '/aws/ec2')

@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanIAM, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
+import { emitScanTriggeredMetric } from "../services/telemetry";
 
 interface AWSIAMFinding {
   id: string;
@@ -231,6 +232,7 @@ export function AWSIAMScan() {
 
       // Call the real API
       const response: ScanResponse = await scanIAM(selectedRegion);
+      emitScanTriggeredMetric("iam");
 
       // Transform API response to component format
       const transformedResult: AWSScanResult = {

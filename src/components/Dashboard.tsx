@@ -13,6 +13,7 @@ import { useScanResults } from "../context/ScanResultsContext";
 import { toast } from "sonner";
 import type { ReportRecord } from "../types/report";
 import { formatRelativeTime } from "../utils/ui";
+import { emitScanTriggeredMetric } from "../services/telemetry";
 
 interface DashboardProps {
   onNavigate?: (tab: string) => void;
@@ -334,6 +335,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
       let response: ScanResponse;
       try {
         response = await scanFull('us-east-1');
+        emitScanTriggeredMetric("full");
       } catch (apiError) {
         // Even if API throws, create a completed response with empty results
         // API call failed, using fallback response

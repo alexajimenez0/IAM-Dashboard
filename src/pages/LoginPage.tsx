@@ -1,14 +1,19 @@
 import { Shield, Github, Mail, ArrowLeft, Lock, Eye, EyeOff } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import logoImage from "@/assets/logo.png";
+import { emitPageLoadMetric } from "../services/telemetry";
 
 export function LoginPage() {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  useEffect(() => {
+    emitPageLoadMetric("login");
+  }, []);
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
