@@ -23,3 +23,43 @@ output "github_actions_role_arn" {
   value       = module.github_actions.github_actions_role_arn
 }
 
+output "cognito_user_pool_id" {
+  description = "Cognito User Pool ID"
+  value       = module.cognito.user_pool_id
+}
+
+output "cognito_app_client_id" {
+  description = "Cognito User Pool App Client ID"
+  value       = module.cognito.app_client_id
+}
+
+output "cognito_issuer_url" {
+  description = "Cognito issuer URL"
+  value       = module.cognito.issuer_url
+}
+
+output "cognito_hosted_ui_domain" {
+  description = "Cognito Hosted UI domain"
+  value       = module.cognito.hosted_ui_domain
+}
+
+
+output "account_mgmt_lambda_function_name" {
+  description = "Name of the account management Lambda function"
+  value       = module.lambda_accounts.lambda_function_name
+}
+
+output "account_mgmt_lambda_arn" {
+  description = "ARN of the account management Lambda function"
+  value       = module.lambda_accounts.lambda_function_arn
+}
+
+output "accounts_table_name" {
+  description = "Name of the registered accounts DynamoDB table"
+  value       = module.dynamodb.accounts_table_name
+}
+
+output "accounts_table_arn" {
+  description = "ARN of the registered accounts DynamoDB table"
+  value       = module.dynamodb.accounts_table_arn
+}
