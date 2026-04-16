@@ -106,3 +106,8 @@ variable "scan_results_ttl_days" {
   type        = number
   default     = 365
 }
+
+variable "session_table_name" {
+  description = "Name of the DynamoDB table for auth sessions"
+  type        = string
+}

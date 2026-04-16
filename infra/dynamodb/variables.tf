@@ -50,3 +50,15 @@ variable "ttl_attribute_name" {
   type        = string
   default     = "expires_at"
 }
+
+variable "accounts_table_name" {
+  description = "Name of the DynamoDB table for registered accounts (multi-account scanning)"
+  type        = string
+  default     = "iam-dashboard-accounts"
+}
+
+variable "enable_accounts_point_in_time_recovery" {
+  description = "Enable point-in-time recovery for the accounts DynamoDB table"
+  type        = bool
+  default     = true
+}

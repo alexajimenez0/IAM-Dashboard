@@ -10,13 +10,16 @@ The IAM Dashboard infrastructure is defined as Terraform modules. Each service h
 
 ## 📁 Directory Structure
 
-```
+```graphql
 infra/
 ├── bootstrap/       # One-time: S3 state bucket + DynamoDB lock table (run before main)
-├── s3/              # S3 bucket for static hosting and scan results
-├── dynamodb/        # DynamoDB table for storing scan results
+├── s3/              # S3 bucket for static hosting and scan results and terraform state file
+├── dynamodb/        # DynamoDB table for storing scan results and terraform state locking
+├── DynamoDB_Auth/   # DynamoDB table for storing session cookies from user authentication
 ├── lambda/          # Lambda function and IAM role for security scanning
-├── api-gateway/     # API Gateway REST API (placeholder for 9 endpoints)
+├── api-gateway/     # API Gateway HTTP API creates the 12 endpoints used for auth + scans
+├── cognito/         # User pool, app client, and cognito domain for authentication
+├── cloudfront/       # CloudFront CDN for secure https transportation and caching         
 └── README.md        # This file
 ```
 
@@ -25,7 +28,8 @@ infra/
 ### S3 (`infra/s3/`)
 - **Bucket**: `iam-dashboard-project` (static hosting)
 - **Bucket**: `iam-dashboard-scan-results-{random}` (scan results storage)
-- **Purpose**: Static site hosting and storing scan results
+- **Bucket**: `iam-dashboard-terraform-state` (terraform state file)
+- **Purpose**: Static site hosting, storing the Terraform state file, and storing scan results
 - **Lifecycle**: JSON written by the scanner under `scan-results/` expires after `scan_results_retention_days` (default **365**); see [Data retention policy](../docs/operations/DATA_RETENTION.md).
 
 ### DynamoDB (`infra/dynamodb/`)
@@ -33,6 +37,11 @@ infra/
 - **Purpose**: Store security scan results from AWS scanners and OPA policies
 - **Schema**: Partition key `scan_id`, Sort key `timestamp`
 - **Retention**: TTL on numeric attribute `expires_at` when enabled in Terraform; writers use `SCAN_RESULTS_TTL_DAYS` / `scan_results_ttl_days` (default **365**). Details: [Data retention policy](../docs/operations/DATA_RETENTION.md).
+
+### DynamoDB (`infra/DynamoDB_Auth`)
+- **Table**: `iam-dashboard-auth-sessions-test`
+- **Purpose**: Store session cookies when users authenticate
+- **Schema**: Partition key `session_id`, index, `username`
 
 ### Lambda (`infra/lambda/`)
 - **Function**: `iam-dashboard-scanner`
@@ -42,8 +51,8 @@ infra/
 
 ### API Gateway (`infra/api-gateway/`)
 - **API**: `iam-dashboard-api`
-- **Purpose**: REST API endpoints for triggering scans (9 endpoints planned)
-- **Status**: Placeholder structure, routes will be added when Lambda is ready
+- **Purpose**: HTTP API endpoints for scans and authentication
+- **Status**: Currently 12 route endpoints exist
 
 ## Data retention
 
