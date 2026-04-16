@@ -5,12 +5,17 @@ DynamoDB Service for data persistence and management
 import os
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import boto3
 from botocore.exceptions import ClientError
 
 logger = logging.getLogger(__name__)
+
+
+def _scan_item_expires_at_epoch() -> int:
+    days = int(os.environ.get('SCAN_RESULTS_TTL_DAYS', '365'))
+    return int((datetime.utcnow() + timedelta(days=days)).timestamp())
 
 
 class DynamoDBService:
@@ -49,7 +54,8 @@ class DynamoDBService:
                 'findings_count': scan_data.get('findings_count', 0),
                 'metadata': scan_data.get('metadata', {}),
                 'created_at': datetime.utcnow().isoformat(),
-                'updated_at': datetime.utcnow().isoformat()
+                'updated_at': datetime.utcnow().isoformat(),
+                'expires_at': scan_data.get('expires_at', _scan_item_expires_at_epoch()),
             }
             
             self.scan_results.put_item(Item=item)

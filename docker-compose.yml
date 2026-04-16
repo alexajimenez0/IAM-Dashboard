@@ -36,6 +36,7 @@ services:
       - SMTP_USERNAME=${SMTP_USERNAME:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - SMTP_FROM=${SMTP_FROM:-no-reply@local.test}
+      - SCAN_RESULTS_TTL_DAYS=${SCAN_RESULTS_TTL_DAYS:-365}
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
@@ -113,16 +114,22 @@ services:
     container_name: cybersecurity-prometheus
     ports:
       - "9090:9090"
+    environment:
+      # Time-series retention; override via host .env or export (see docs/operations/DATA_RETENTION.md)
+      - PROMETHEUS_RETENTION_TIME=${PROMETHEUS_RETENTION_TIME:-200h}
     volumes:
       - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
+    entrypoint: ["/bin/sh", "-c"]
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
-      - '--web.enable-lifecycle'
+      - >-
+        exec /bin/prometheus
+        --config.file=/etc/prometheus/prometheus.yml
+        --storage.tsdb.path=/prometheus
+        --web.console.libraries=/etc/prometheus/console_libraries
+        --web.console.templates=/etc/prometheus/consoles
+        --storage.tsdb.retention.time=$$PROMETHEUS_RETENTION_TIME
+        --web.enable-lifecycle
     networks:
       - cybersecurity-network
     restart: unless-stopped

@@ -46,6 +46,30 @@ variable "dynamodb_table_name" {
   default     = "iam-dashboard-scan-results"
 }
 
+variable "scan_results_ttl_days" {
+  description = "Days until DynamoDB scan items expire (TTL on expires_at); passed to Lambda as SCAN_RESULTS_TTL_DAYS"
+  type        = number
+  default     = 365
+}
+
+variable "scan_results_s3_retention_days" {
+  description = "S3 lifecycle expiration (days) for objects under scan-results/"
+  type        = number
+  default     = 365
+}
+
+variable "enable_dynamodb_scan_ttl" {
+  description = "When true, enable DynamoDB TTL on the scan results table"
+  type        = bool
+  default     = true
+}
+
+variable "dynamodb_ttl_attribute_name" {
+  description = "DynamoDB TTL attribute (numeric epoch seconds); must match application writers"
+  type        = string
+  default     = "expires_at"
+}
+
 variable "lambda_function_name" {
   description = "Lambda function name"
   type        = string

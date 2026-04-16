@@ -63,6 +63,19 @@ resource "aws_s3_bucket_lifecycle_configuration" "frontend" {
       noncurrent_days = 30
     }
   }
+
+  rule {
+    id     = "expire-lambda-scan-results"
+    status = "Enabled"
+
+    filter {
+      prefix = "scan-results/"
+    }
+
+    expiration {
+      days = var.scan_results_retention_days
+    }
+  }
 }
 
 # S3 bucket public access block (optional - disabled for static site hosting)

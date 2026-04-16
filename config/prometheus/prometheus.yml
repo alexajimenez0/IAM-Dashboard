@@ -1,3 +1,7 @@
+# Scrape configuration for Docker Compose. Time-series retention is not set here;
+# it is configured on the Prometheus process (see docker-compose.yml and
+# docs/operations/DATA_RETENTION.md).
+
 global:
   scrape_interval: 15s
   evaluation_interval: 15s

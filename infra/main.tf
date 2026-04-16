@@ -35,12 +35,13 @@ data "aws_kms_key" "logs" {
 module "s3" {
   source = "./s3"
 
-  aws_region             = var.aws_region
-  environment            = var.environment
-  project_name           = var.project_name
-  s3_bucket_name         = var.s3_bucket_name
-  s3_kms_key_arn         = data.aws_kms_key.logs.arn
-  s3_logging_bucket_name = "${var.s3_bucket_name}-access-logs"
+  aws_region                  = var.aws_region
+  environment                 = var.environment
+  project_name                = var.project_name
+  s3_bucket_name              = var.s3_bucket_name
+  s3_kms_key_arn              = data.aws_kms_key.logs.arn
+  s3_logging_bucket_name      = "${var.s3_bucket_name}-access-logs"
+  scan_results_retention_days = var.scan_results_s3_retention_days
 }
 
 # DynamoDB Module
@@ -53,19 +54,22 @@ module "dynamodb" {
   dynamodb_table_name           = var.dynamodb_table_name
   dynamodb_kms_key_arn          = data.aws_kms_key.logs.arn
   enable_point_in_time_recovery = true
+  enable_ttl                    = var.enable_dynamodb_scan_ttl
+  ttl_attribute_name            = var.dynamodb_ttl_attribute_name
 }
 
 # Lambda Module
 module "lambda" {
   source = "./lambda"
 
-  aws_region           = var.aws_region
-  environment          = var.environment
-  project_name         = var.project_name
-  lambda_function_name = var.lambda_function_name
-  dynamodb_table_name  = var.dynamodb_table_name
-  s3_bucket_name       = var.s3_bucket_name
-  lambda_kms_key_arn   = data.aws_kms_key.logs.arn
+  aws_region            = var.aws_region
+  environment           = var.environment
+  project_name          = var.project_name
+  lambda_function_name  = var.lambda_function_name
+  dynamodb_table_name   = var.dynamodb_table_name
+  s3_bucket_name        = var.s3_bucket_name
+  lambda_kms_key_arn    = data.aws_kms_key.logs.arn
+  scan_results_ttl_days = var.scan_results_ttl_days
 }
 
 # API Gateway Module

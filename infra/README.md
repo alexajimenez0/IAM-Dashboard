@@ -26,11 +26,13 @@ infra/
 - **Bucket**: `iam-dashboard-project` (static hosting)
 - **Bucket**: `iam-dashboard-scan-results-{random}` (scan results storage)
 - **Purpose**: Static site hosting and storing scan results
+- **Lifecycle**: JSON written by the scanner under `scan-results/` expires after `scan_results_retention_days` (default **365**); see [Data retention policy](../docs/operations/DATA_RETENTION.md).
 
 ### DynamoDB (`infra/dynamodb/`)
 - **Table**: `iam-dashboard-scan-results`
 - **Purpose**: Store security scan results from AWS scanners and OPA policies
-- **Schema**: Partition key `scanner_type`, Sort key `scan_id`
+- **Schema**: Partition key `scan_id`, Sort key `timestamp`
+- **Retention**: TTL on numeric attribute `expires_at` when enabled in Terraform; writers use `SCAN_RESULTS_TTL_DAYS` / `scan_results_ttl_days` (default **365**). Details: [Data retention policy](../docs/operations/DATA_RETENTION.md).
 
 ### Lambda (`infra/lambda/`)
 - **Function**: `iam-dashboard-scanner`
@@ -42,6 +44,10 @@ infra/
 - **API**: `iam-dashboard-api`
 - **Purpose**: REST API endpoints for triggering scans (9 endpoints planned)
 - **Status**: Placeholder structure, routes will be added when Lambda is ready
+
+## Data retention
+
+Prometheus metrics retention, Grafana behavior, PostgreSQL cleanup, DynamoDB TTL, S3 lifecycle for `scan-results/`, and browser storage are documented in **[docs/operations/DATA_RETENTION.md](../docs/operations/DATA_RETENTION.md)**. Terraform root variables include `scan_results_ttl_days`, `scan_results_s3_retention_days`, `enable_dynamodb_scan_ttl`, and `dynamodb_ttl_attribute_name`.
 
 ## Terraform state bucket (important)
 

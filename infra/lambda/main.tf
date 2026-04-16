@@ -76,10 +76,11 @@ resource "aws_lambda_function" "scanner" {
     variables = merge(
       var.lambda_environment_variables,
       {
-        DYNAMODB_TABLE_NAME = var.dynamodb_table_name
-        S3_BUCKET_NAME      = var.s3_bucket_name
-        PROJECT_NAME        = var.project_name
-        ENVIRONMENT         = var.environment
+        DYNAMODB_TABLE_NAME   = var.dynamodb_table_name
+        S3_BUCKET_NAME        = var.s3_bucket_name
+        PROJECT_NAME          = var.project_name
+        ENVIRONMENT           = var.environment
+        SCAN_RESULTS_TTL_DAYS = tostring(var.scan_results_ttl_days)
       }
     )
   }

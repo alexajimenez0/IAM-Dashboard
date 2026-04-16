@@ -7,7 +7,7 @@ import json
 import os
 import logging
 import boto3
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from botocore.exceptions import ClientError
 from decimal import Decimal
@@ -106,6 +106,7 @@ DYNAMODB_TABLE_NAME = os.environ.get('DYNAMODB_TABLE_NAME', 'iam-dashboard-scan-
 S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', 'iam-dashboard-project')
 PROJECT_NAME = os.environ.get('PROJECT_NAME', 'IAMDash')
 ENVIRONMENT = os.environ.get('ENVIRONMENT', 'dev')
+SCAN_RESULTS_TTL_DAYS = int(os.environ.get('SCAN_RESULTS_TTL_DAYS', '365'))
 
 
 def publish_metric(metric_name: str, value: float, dimensions: Dict[str, str] = None):
@@ -1598,6 +1599,7 @@ def store_results(scan_id: str, scanner_type: str, region: str, scan_result: Dic
     """Store scan results in DynamoDB and S3"""
     try:
         timestamp = datetime.utcnow().isoformat()
+        expires_at = int((datetime.utcnow() + timedelta(days=SCAN_RESULTS_TTL_DAYS)).timestamp())
         
         # Store in DynamoDB
         try:
@@ -1610,7 +1612,8 @@ def store_results(scan_id: str, scanner_type: str, region: str, scan_result: Dic
                     'timestamp': timestamp,
                     'results': scan_result,
                     'project': PROJECT_NAME,
-                    'environment': ENVIRONMENT
+                    'environment': ENVIRONMENT,
+                    'expires_at': expires_at,
                 }
             )
             logger.info(f"Stored results in DynamoDB: {scan_id}")

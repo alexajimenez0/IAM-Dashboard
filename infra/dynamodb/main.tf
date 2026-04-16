@@ -62,6 +62,14 @@ resource "aws_dynamodb_table" "scan_results" {
   # Enable deletion protection in production
   deletion_protection_enabled = var.environment == "prod"
 
+  dynamic "ttl" {
+    for_each = var.enable_ttl ? [1] : []
+    content {
+      attribute_name = var.ttl_attribute_name
+      enabled        = true
+    }
+  }
+
   tags = {
     Name        = var.dynamodb_table_name
     Project     = var.project_name

@@ -43,3 +43,14 @@ variable "s3_logging_bucket_name" {
   description = "Name of the S3 bucket for storing access logs"
   type        = string
 }
+
+variable "scan_results_retention_days" {
+  description = "Expire objects under the scan-results/ prefix after this many days (aligned with DynamoDB scan TTL)"
+  type        = number
+  default     = 365
+
+  validation {
+    condition     = var.scan_results_retention_days >= 1 && var.scan_results_retention_days <= 3650
+    error_message = "scan_results_retention_days must be between 1 and 3650."
+  }
+}

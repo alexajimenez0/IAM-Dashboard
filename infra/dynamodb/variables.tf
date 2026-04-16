@@ -38,3 +38,15 @@ variable "dynamodb_kms_key_arn" {
   description = "ARN of the shared/root KMS CMK to use for DynamoDB table encryption"
   type        = string
 }
+
+variable "enable_ttl" {
+  description = "Enable DynamoDB TTL on expires_at for automatic removal of old scan items"
+  type        = bool
+  default     = true
+}
+
+variable "ttl_attribute_name" {
+  description = "Numeric Unix epoch attribute used by DynamoDB TTL (writers must populate this)"
+  type        = string
+  default     = "expires_at"
+}

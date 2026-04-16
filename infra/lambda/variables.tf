@@ -100,3 +100,9 @@ variable "s3_bucket_name" {
   type        = string
   default     = "iam-dashboard-project"
 }
+
+variable "scan_results_ttl_days" {
+  description = "Days from write until DynamoDB item TTL (expires_at)"
+  type        = number
+  default     = 365
+}
