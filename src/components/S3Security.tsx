@@ -41,6 +41,7 @@ import {
 import { toast } from "sonner";
 import { scanS3, type ScanResponse } from "../services/api";
 import { useActiveScanResults } from "../hooks/useActiveScanResults";
+import { useAwsAccount } from "../context/AwsAccountContext";
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard } from "./ui/StatCard";
@@ -672,6 +673,7 @@ export function S3Security() {
   const [workflows, setWorkflows] = useState<Record<string, FindingWorkflow>>(S3_WORKFLOWS);
   const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
   const { addScanResult } = useActiveScanResults();
+  const { selectedAccount } = useAwsAccount();
 
   useEffect(() => {
     setScanResult({
@@ -745,7 +747,7 @@ export function S3Security() {
     try {
       toast.info("S3 security scan started", { description: "Analyzing buckets, ACLs, policies, encryption…" });
       const region = selectedRegion === "all-regions" ? "us-east-1" : selectedRegion;
-      const response: ScanResponse = await scanS3(region);
+      const response: ScanResponse = await scanS3(region, selectedAccount?.accountId || undefined);
       setScanResult({
         scan_id: response.scan_id,
         status: response.status === "completed" ? "Completed" : "Failed",

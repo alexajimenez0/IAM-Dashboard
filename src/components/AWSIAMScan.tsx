@@ -12,6 +12,7 @@ import { FindingDetailPanel, type WorkflowData } from "./ui/FindingDetailPanel";
 import { toast } from "sonner";
 import { scanIAM, type ScanResponse } from "../services/api";
 import { useActiveScanResults } from "../hooks/useActiveScanResults";
+import { useAwsAccount } from "../context/AwsAccountContext";
 
 interface AWSIAMFinding {
   id: string;
@@ -182,6 +183,7 @@ export function AWSIAMScan() {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
   const { addScanResult } = useActiveScanResults();
+  const { selectedAccount } = useAwsAccount();
 
   // Initialise workflow state when findings arrive; seed from INITIAL_IAM_WORKFLOWS blueprint
   useEffect(() => {
@@ -314,7 +316,7 @@ export function AWSIAMScan() {
         scan_summary: { users: 0, roles: 0, policies: 0, groups: 0, critical_findings: 0, high_findings: 0, medium_findings: 0, low_findings: 0 },
       });
 
-      const response: ScanResponse = await scanIAM(selectedRegion);
+      const response: ScanResponse = await scanIAM(selectedRegion, selectedAccount?.accountId || undefined);
 
       const transformedResult: AWSScanResult = {
         scan_id: response.scan_id,

@@ -22,6 +22,7 @@ import {
 import { toast } from "sonner";
 import { scanEC2, type ScanResponse } from "../services/api";
 import { useActiveScanResults } from "../hooks/useActiveScanResults";
+import { useAwsAccount } from "../context/AwsAccountContext";
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard } from "./ui/StatCard";
@@ -343,6 +344,7 @@ export function VPCSecurity() {
   const [ticketByFinding, setTicketByFinding] = useState<Record<string, string>>({});
   const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
   const { addScanResult } = useActiveScanResults();
+  const { selectedAccount } = useAwsAccount();
 
   // Auto-load mock data on mount
   useEffect(() => {
@@ -383,7 +385,7 @@ export function VPCSecurity() {
         findings: [],
         scan_summary: { total_vpcs: 0, total_subnets: 0, public_subnets: 0, security_groups: 0, open_security_groups: 0, flow_logs_missing: 0, critical_findings: 0, high_findings: 0, medium_findings: 0, low_findings: 0 },
       });
-      const response: ScanResponse = await scanEC2(selectedRegion);
+      const response: ScanResponse = await scanEC2(selectedRegion, selectedAccount?.accountId || undefined);
       const findings = response.results?.vpc?.findings ?? mockVPCFindings;
       const summary = response.results?.vpc?.scan_summary ?? mockVPCSummary;
       setScanResult({

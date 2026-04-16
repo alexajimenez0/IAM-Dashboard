@@ -22,6 +22,7 @@ import {
 import { toast } from "sonner";
 import { scanIAM, type ScanResponse } from "../services/api";
 import { useActiveScanResults } from "../hooks/useActiveScanResults";
+import { useAwsAccount } from "../context/AwsAccountContext";
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard } from "./ui/StatCard";
@@ -355,6 +356,7 @@ export function DynamoDBSecurity() {
   const [ticketByFinding, setTicketByFinding] = useState<Record<string, string>>({});
   const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
   const { addScanResult } = useActiveScanResults();
+  const { selectedAccount } = useAwsAccount();
 
   // Auto-load mock data on mount
   useEffect(() => {
@@ -395,7 +397,7 @@ export function DynamoDBSecurity() {
         findings: [],
         scan_summary: { total_tables: 0, unencrypted_tables: 0, no_pitr: 0, no_deletion_protection: 0, no_streams: 0, critical_findings: 0, high_findings: 0, medium_findings: 0, low_findings: 0 },
       });
-      const response: ScanResponse = await scanIAM(selectedRegion);
+      const response: ScanResponse = await scanIAM(selectedRegion, selectedAccount?.accountId || undefined);
       const findings = response.results?.dynamodb?.findings ?? mockDynamoDBFindings;
       const summary = response.results?.dynamodb?.scan_summary ?? mockDynamoDBSummary;
       setScanResult({

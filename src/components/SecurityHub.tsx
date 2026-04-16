@@ -17,6 +17,7 @@ import { StatCard as SharedStatCard } from "./ui/StatCard";
 import { toast } from "sonner";
 import { scanSecurityHub, type ScanResponse } from "../services/api";
 import { useActiveScanResults } from "../hooks/useActiveScanResults";
+import { useAwsAccount } from "../context/AwsAccountContext";
 
 interface SecurityHubFinding {
   id: string;
@@ -157,6 +158,7 @@ export function SecurityHub() {
   const [scanProgress, setScanProgress] = useState(0);
   const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
   const { addScanResult, getScanResult } = useActiveScanResults();
+  const { selectedAccount } = useAwsAccount();
 
   // Animate scan progress bar
   useEffect(() => {
@@ -303,7 +305,7 @@ export function SecurityHub() {
         description: "Fetching security findings from AWS Security Hub...",
       });
 
-      const response: ScanResponse = await scanSecurityHub(selectedRegion);
+      const response: ScanResponse = await scanSecurityHub(selectedRegion, selectedAccount?.accountId || undefined);
 
       const errorMsg =
         response.error || response.results?.error || response.message;
