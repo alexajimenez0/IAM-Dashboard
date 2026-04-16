@@ -1211,8 +1211,10 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str, scan_client
         sts_client = scan_clients["sts"]
         
         # List users
-        users = iam_client.list_users()
-        user_list = users.get('Users', [])
+        user_list = []
+        paginator = iam_client.get_paginator('list_users')
+        for page in paginator.paginate():
+            user_list.extend(page.get('Users', []))
         
         # Analyze users and generate findings
         users_with_mfa = 0
@@ -1338,8 +1340,10 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str, scan_client
                 continue
         
         # List roles
-        roles = iam_client.list_roles()
-        role_list = roles.get('Roles', [])
+        role_list = []
+        paginator = iam_client.get_paginator('list_roles')
+        for page in paginator.paginate():
+            role_list.extend(page.get('Roles', []))
         
         # Service principal mappings for infrastructure identification
         service_principals = {
@@ -1359,7 +1363,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str, scan_client
         }
         
         # Analyze roles for infrastructure security
-        for role in role_list[:100]:  # Increased limit to analyze more roles
+        for role in role_list:
             role_name = role['RoleName']
             role_arn = role.get('Arn', f'arn:aws:iam::{account_id}:role/{role_name}')
             
@@ -1526,12 +1530,16 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str, scan_client
                 continue
         
         # List policies
-        policies = iam_client.list_policies(Scope='Local', MaxItems=100)
-        policy_list = policies.get('Policies', [])
+        policy_list = []
+        paginator = iam_client.get_paginator('list_policies')
+        for page in paginator.paginate(Scope='Local'):
+            policy_list.extend(page.get('Policies', []))
         
         # List groups
-        groups = iam_client.list_groups()
-        group_list = groups.get('Groups', [])
+        group_list = []
+        paginator = iam_client.get_paginator('list_groups')
+        for page in paginator.paginate():
+            group_list.extend(page.get('Groups', []))
         
         return {
             'account_id': account_id,
@@ -1550,7 +1558,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str, scan_client
             'groups': {
                 'total': len(group_list)
             },
-            'findings': findings[:100],  # Limit to first 100 findings
+            'findings': findings,
             'scan_summary': {
                 'critical_findings': critical_findings,
                 'high_findings': high_findings,

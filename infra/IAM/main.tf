@@ -81,7 +81,7 @@ resource "aws_iam_role_policy" "scan_policy" {
         Effect = "Allow"
         Action = [
           "securityhub:GetFindings", "securityhub:GetInsights",
-          "securityhub:BatchImportFindings", "securityhub:GetComplianceSummary"
+          , "securityhub:GetComplianceSummary"
         ]
         Resource = "*"
       },
@@ -109,8 +109,8 @@ resource "aws_iam_role_policy" "scan_policy" {
         Sid    = "InspectorRead"
         Effect = "Allow"
         Action = [
-          "inspector2:ListFindings", "inspector2:GetFindings", "inspector2:BatchGetFindings",
-          "inspector2:ListScans"
+          "inspector2:ListFindings", "inspector2:ListCodeSecurityScanConfigurations", "inspector2:BatchGetFindingDetails",
+          "inspector2:ListCisScans", "inspector2:ListCoverage"
         ]
         Resource = "*"
       },
