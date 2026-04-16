@@ -43,7 +43,9 @@ RUN apt-get update -o Acquire::Retries=3 -o Acquire::ForceIPv4=true && \
             build-essential \
             gcc \
             g++ \
-        && grep -v -E "^#|pytest|black|flake8" requirements.txt > /tmp/requirements-prod.txt \
+        && grep -Ev '^\s*(#|$)' requirements.txt \
+           | grep -Ev '^\s*(pytest([-_][A-Za-z0-9]+)*|black|flake8)\s*([<>=!~].*)?$' \
+           > /tmp/requirements-prod.txt \
         && pip install --no-cache-dir -r /tmp/requirements-prod.txt -r requirements-postgres.txt \
         && rm /tmp/requirements-prod.txt \
         && apt-get purge -y --auto-remove build-essential gcc g++ \
