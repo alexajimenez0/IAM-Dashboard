@@ -20,7 +20,7 @@ export interface AwsConnectedAccount {
 
 const STORAGE_SELECTED = 'iam-dashboard-selected-aws-account';
 const ACCOUNTS_CACHE_KEY = 'iam-dashboard-accounts-cache';
-const ACCOUNTS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const ACCOUNTS_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 const DATA_MODE = (import.meta.env.VITE_DATA_MODE || 'live').toLowerCase();
 const IS_MOCK = DATA_MODE === 'mock';
@@ -44,14 +44,33 @@ interface CachedAccountsPayload {
   accounts: AwsConnectedAccount[];
 }
 
+function normalizeCachedAccounts(accounts: unknown): AwsConnectedAccount[] {
+  if (!Array.isArray(accounts)) return [];
+  return accounts
+    .filter((a): a is Record<string, unknown> => typeof a === 'object' && a !== null)
+    .map((a) => {
+      const accountId =
+        typeof a.accountId === 'string' && a.accountId.trim()
+          ? a.accountId.trim()
+          : '';
+      if (!accountId) return null;
+      const label =
+        typeof a.label === 'string' && a.label.trim()
+          ? a.label.trim()
+          : accountId;
+      return { id: accountId, label, accountId };
+    })
+    .filter((a): a is AwsConnectedAccount => a !== null);
+}
+
 function readCachedAccounts(): AwsConnectedAccount[] | null {
   try {
     const raw = sessionStorage.getItem(ACCOUNTS_CACHE_KEY);
     if (!raw) return null;
     const payload = JSON.parse(raw) as CachedAccountsPayload;
     if (Date.now() - payload.timestamp > ACCOUNTS_CACHE_TTL_MS) return null;
-    if (!Array.isArray(payload.accounts) || payload.accounts.length === 0) return null;
-    return payload.accounts;
+    const accounts = normalizeCachedAccounts(payload.accounts);
+    return accounts.length > 0 ? accounts : null;
   } catch {
     return null;
   }
