@@ -26,23 +26,24 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies (robust, noninteractive)
+# Copy requirements first for better caching
+COPY requirements.txt requirements-postgres.txt ./
+
+# Install system dependencies, Python packages, then remove build tools in a
+# single layer so compiler toolchain never bloats the final image.
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -o Acquire::Retries=3 -o Acquire::ForceIPv4=true && \
         apt-get install -y --no-install-recommends \
             ca-certificates \
             curl \
-            apt-utils \
             build-essential \
             gcc \
             g++ \
+        && grep -v -E "^#|pytest|black|flake8" requirements.txt > /tmp/requirements-prod.txt \
+        && pip install --no-cache-dir -r /tmp/requirements-prod.txt -r requirements-postgres.txt \
+        && rm /tmp/requirements-prod.txt \
+        && apt-get purge -y --auto-remove build-essential gcc g++ \
         && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements first for better caching
-COPY requirements.txt requirements-postgres.txt ./
-
-# Install Python dependencies (include PostgreSQL driver for Docker/Compose)
-RUN pip install --no-cache-dir -r requirements.txt -r requirements-postgres.txt
 
 # Copy Flask application
 COPY backend/ ./backend/
@@ -51,14 +52,10 @@ COPY config/ ./config/
 # Copy built frontend from previous stage
 COPY --from=frontend-builder /app/frontend/build ./static
 
-# Create necessary directories
-RUN mkdir -p logs data/uploads
-
-# Create a non-root user for security
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-
-# Set proper ownership of directories
-RUN chown -R appuser:appuser /app
+# Create non-root user, directories, and set ownership in one layer
+RUN groupadd -r appuser && useradd -r -g appuser appuser \
+    && mkdir -p logs data/uploads \
+    && chown -R appuser:appuser /app
 
 # Switch to non-root user
 USER appuser
