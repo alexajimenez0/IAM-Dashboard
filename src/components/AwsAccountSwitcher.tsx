@@ -1,11 +1,19 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { useAwsAccount, type AwsConnectedAccount } from "../context/AwsAccountContext";
-import { getMockConnectionState } from "../constants/awsAccountConnectionMock";
+import { getMockConnectionState, type AccountConnectionState } from "../constants/awsAccountConnectionMock";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 
+const DATA_MODE = (import.meta.env.VITE_DATA_MODE || "live").toLowerCase();
+const IS_MOCK = DATA_MODE === "mock";
+
+function getConnectionState(accountId: string): AccountConnectionState {
+  if (!IS_MOCK) return "connected";
+  return getMockConnectionState(accountId);
+}
+
 function getStatusColor(accountId: string): string {
-  const s = getMockConnectionState(accountId);
+  const s = getConnectionState(accountId);
   if (s === "connected") return "#00ff88";
   if (s === "pending") return "#ffb000";
   if (s === "error") return "#ff0040";
@@ -13,7 +21,7 @@ function getStatusColor(accountId: string): string {
 }
 
 function getStatusLabel(accountId: string): string {
-  const s = getMockConnectionState(accountId);
+  const s = getConnectionState(accountId);
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
@@ -431,7 +439,9 @@ export function AwsAccountSwitcher({ collapsed = false }: AwsAccountSwitcherProp
               fontFamily: "'JetBrains Mono', monospace",
             }}
           >
-            {accounts.filter((a) => getMockConnectionState(a.accountId) === "connected").length}
+            {IS_MOCK
+              ? accounts.filter((a) => getMockConnectionState(a.accountId) === "connected").length
+              : accounts.length}
             {" / "}
             {accounts.length} live
           </span>

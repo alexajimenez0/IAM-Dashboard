@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { useScanResults } from './ScanResultsContext';
 import { useAuth } from './AuthContext';
-import { getAccounts } from '../services/accounts';
+import { getAccounts, type AccountRecord } from '../services/accounts';
 
 export interface AwsConnectedAccount {
   id: string;
@@ -19,6 +19,9 @@ export interface AwsConnectedAccount {
 }
 
 const STORAGE_SELECTED = 'iam-dashboard-selected-aws-account';
+const ACCOUNTS_CACHE_KEY = 'iam-dashboard-accounts-cache';
+const ACCOUNTS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 const DATA_MODE = (import.meta.env.VITE_DATA_MODE || 'live').toLowerCase();
 const IS_MOCK = DATA_MODE === 'mock';
 
@@ -35,6 +38,46 @@ const FALLBACK_MAIN_ACCOUNT: AwsConnectedAccount = {
   label: 'Main Account',
   accountId: '',
 };
+
+interface CachedAccountsPayload {
+  timestamp: number;
+  accounts: AwsConnectedAccount[];
+}
+
+function readCachedAccounts(): AwsConnectedAccount[] | null {
+  try {
+    const raw = sessionStorage.getItem(ACCOUNTS_CACHE_KEY);
+    if (!raw) return null;
+    const payload = JSON.parse(raw) as CachedAccountsPayload;
+    if (Date.now() - payload.timestamp > ACCOUNTS_CACHE_TTL_MS) return null;
+    if (!Array.isArray(payload.accounts) || payload.accounts.length === 0) return null;
+    return payload.accounts;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedAccounts(accounts: AwsConnectedAccount[]): void {
+  try {
+    const payload: CachedAccountsPayload = { timestamp: Date.now(), accounts };
+    sessionStorage.setItem(ACCOUNTS_CACHE_KEY, JSON.stringify(payload));
+  } catch {
+    /* ignore */
+  }
+}
+
+function mapAccountRecords(records: AccountRecord[]): AwsConnectedAccount[] {
+  return records
+    .filter((a) => typeof a.account_id === 'string' && a.account_id.trim())
+    .map((a) => {
+      const accountId = a.account_id.trim();
+      const accountName =
+        typeof a.account_name === 'string' && a.account_name.trim()
+          ? a.account_name.trim()
+          : accountId;
+      return { id: accountId, label: accountName, accountId };
+    });
+}
 
 function readStoredSelectedId(): string | null {
   try {
@@ -70,17 +113,24 @@ export function AwsAccountProvider({ children }: { children: ReactNode }) {
   const { ensureMockFullScanIfEmpty } = useScanResults();
   const auth = useAuth();
 
-  const [accounts, setAccounts] = useState<AwsConnectedAccount[]>(
-    IS_MOCK ? MOCK_AWS_ACCOUNTS : [FALLBACK_MAIN_ACCOUNT],
-  );
+  // Initialize from cache in live mode if available
+  const initialAccounts = useMemo(() => {
+    if (IS_MOCK) return MOCK_AWS_ACCOUNTS;
+    const cached = readCachedAccounts();
+    return cached ?? [FALLBACK_MAIN_ACCOUNT];
+  }, []);
+
+  const [accounts, setAccounts] = useState<AwsConnectedAccount[]>(initialAccounts);
   const [selectedId, setSelectedId] = useState<string | null>(() => {
-    const initial = IS_MOCK ? MOCK_AWS_ACCOUNTS : [FALLBACK_MAIN_ACCOUNT];
-    if (initial.length === 0) return null;
+    if (initialAccounts.length === 0) return null;
     const stored = readStoredSelectedId();
-    if (stored && initial.some((a) => a.id === stored)) return stored;
-    return initial[0].id;
+    if (stored && initialAccounts.some((a) => a.id === stored)) return stored;
+    return initialAccounts[0].id;
   });
-  const [isLoadingAccounts, setIsLoadingAccounts] = useState(!IS_MOCK);
+
+  // In live mode, start loading only if no fresh cache
+  const hasFreshCache = !IS_MOCK && readCachedAccounts() !== null;
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(!IS_MOCK && !hasFreshCache);
   const [accountsError, setAccountsError] = useState<string | null>(null);
   const mountedRef = useRef(true);
 
@@ -91,8 +141,29 @@ export function AwsAccountProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const loadAccounts = useCallback(async () => {
-    if (IS_MOCK || !auth.isAuthenticated) return;
+  const applyAccounts = useCallback((next: AwsConnectedAccount[]) => {
+    setAccounts(next);
+    setSelectedId((prev) => {
+      const stored = prev ?? readStoredSelectedId();
+      if (stored && next.some((a) => a.id === stored)) return stored;
+      const first = next[0]?.id ?? null;
+      if (first) writeStoredSelectedId(first);
+      return first;
+    });
+  }, []);
+
+  const fetchAccounts = useCallback(async (bypassCache: boolean) => {
+    if (IS_MOCK) return;
+
+    // Use cache if fresh and not bypassing
+    if (!bypassCache) {
+      const cached = readCachedAccounts();
+      if (cached) {
+        applyAccounts(cached);
+        setIsLoadingAccounts(false);
+        return;
+      }
+    }
 
     setIsLoadingAccounts(true);
     setAccountsError(null);
@@ -101,52 +172,36 @@ export function AwsAccountProvider({ children }: { children: ReactNode }) {
       const response = await getAccounts();
       if (!mountedRef.current) return;
 
-      const raw = Array.isArray(response?.accounts) ? response.accounts : [];
-      const mapped: AwsConnectedAccount[] = raw
-        .filter((a) => typeof a.account_id === 'string' && a.account_id.trim())
-        .map((a) => {
-          const accountId = a.account_id.trim();
-          const accountName =
-            typeof a.account_name === 'string' && a.account_name.trim()
-              ? a.account_name.trim()
-              : accountId;
-          return { id: accountId, label: accountName, accountId };
-        });
+      const mapped = mapAccountRecords(response?.accounts ?? []);
+      const next = mapped.length > 0 ? mapped : null;
 
-      const next = mapped.length > 0 ? mapped : [FALLBACK_MAIN_ACCOUNT];
-      setAccounts(next);
-
-      setSelectedId((prev) => {
-        const stored = prev ?? readStoredSelectedId();
-        if (stored && next.some((a) => a.id === stored)) return stored;
-        const first = next[0].id;
-        writeStoredSelectedId(first);
-        return first;
-      });
+      if (next) {
+        writeCachedAccounts(next);
+        applyAccounts(next);
+      } else {
+        applyAccounts([FALLBACK_MAIN_ACCOUNT]);
+      }
     } catch (err) {
       if (!mountedRef.current) return;
       const msg = err instanceof Error ? err.message : 'Unable to load AWS accounts.';
       setAccountsError(msg);
-      setAccounts([FALLBACK_MAIN_ACCOUNT]);
-      setSelectedId((prev) => {
-        if (prev === FALLBACK_MAIN_ACCOUNT.id) return prev;
-        writeStoredSelectedId(FALLBACK_MAIN_ACCOUNT.id);
-        return FALLBACK_MAIN_ACCOUNT.id;
-      });
+      // Fall back to cache if available, otherwise fallback account
+      const cached = readCachedAccounts();
+      applyAccounts(cached ?? [FALLBACK_MAIN_ACCOUNT]);
     } finally {
       if (mountedRef.current) setIsLoadingAccounts(false);
     }
-  }, [auth.isAuthenticated]);
+  }, [applyAccounts]);
 
   // Load accounts once auth is ready in live mode
   useEffect(() => {
     if (IS_MOCK || auth.isLoading) return;
     if (auth.isAuthenticated) {
-      void loadAccounts();
+      void fetchAccounts(false);
     } else {
       setIsLoadingAccounts(false);
     }
-  }, [auth.isLoading, auth.isAuthenticated, loadAccounts]);
+  }, [auth.isLoading, auth.isAuthenticated, fetchAccounts]);
 
   // Keep selectedId valid when accounts list changes
   useEffect(() => {
@@ -188,8 +243,8 @@ export function AwsAccountProvider({ children }: { children: ReactNode }) {
 
   const refreshAccounts = useCallback(async () => {
     if (IS_MOCK) return;
-    await loadAccounts();
-  }, [loadAccounts]);
+    await fetchAccounts(true);
+  }, [fetchAccounts]);
 
   const value = useMemo(
     () => ({
