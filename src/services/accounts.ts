@@ -52,11 +52,16 @@ async function accountsRequest<T>(
   });
 
   let responseData: AccountsErrorResponse | T | null = null;
-  try {
-    responseData = await response.json();
-  } catch {
-    if (!response.ok) {
-      throw new Error(`Request failed: ${response.status} ${response.statusText}`);
+  const responseText = await response.text();
+
+  if (responseText.trim()) {
+    try {
+      responseData = JSON.parse(responseText) as AccountsErrorResponse | T;
+    } catch {
+      if (!response.ok) {
+        throw new Error(`Request failed: ${response.status} ${response.statusText}`);
+      }
+      throw new Error("Invalid JSON response from accounts API");
     }
   }
 
@@ -65,7 +70,7 @@ async function accountsRequest<T>(
     throw new Error(err.message || err.error || `Request failed: ${response.status}`);
   }
 
-  return responseData as T;
+  return (responseData ?? {}) as T;
 }
 
 /**
