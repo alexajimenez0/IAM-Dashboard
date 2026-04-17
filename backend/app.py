@@ -21,6 +21,8 @@ from api.dashboard import DashboardResource
 from api.health import HealthResource
 from api.metrics import MetricsResource, register_metrics_hooks
 from api.scan_history import ScanHistoryResource
+from api.findings_export import export_findings_csv
+from auth.jwt_guard import require_jwt
 from api.ir import (
     LLMTriageResource,
     LLMRootCauseResource,
@@ -82,6 +84,13 @@ def create_app():
 
     # Initialize API
     api = Api(app, prefix='/api/v1')
+
+    app.add_url_rule(
+        '/api/findings/export/csv',
+        'findings_export_csv',
+        require_jwt(export_findings_csv),
+        methods=['GET'],
+    )
 
     # Initialize services
     aws_service = AWSService()

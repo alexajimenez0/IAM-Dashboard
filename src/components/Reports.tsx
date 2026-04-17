@@ -18,6 +18,7 @@ import { exportScanResultToPDF, exportScanResultToCSV, exportScanResultToJSON, t
 import { toast } from "sonner";
 import { useActiveScanResults } from "../hooks/useActiveScanResults";
 import type { ReportRecord } from "../types/report";
+import { FindingsCsvExportCard } from "./reporting/FindingsCsvExportCard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ReportsProps {
@@ -306,6 +307,8 @@ export function Reports({ reports }: ReportsProps) {
         onRefresh={() => {}}
         onExport={() => {}}
       />
+
+      <FindingsCsvExportCard />
 
       {/* ── Quick generate hero grid ── */}
       <div>

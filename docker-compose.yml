@@ -17,6 +17,9 @@ services:
       - VITE_DATA_MODE=${VITE_DATA_MODE:-live}
       - VITE_API_URL=${VITE_API_URL:-http://localhost:3001}
       - VITE_IR_API_BASE=${VITE_IR_API_BASE:-http://localhost:3001/api/v1}
+      # Browser → Flask for CSV export; matches app service ports 5001:5000 on the host.
+      # Local `npm run dev`: omit in .env so Vite proxies `/api/findings` (see vite.config.ts).
+      - VITE_FLASK_API_URL=${VITE_FLASK_API_URL:-http://localhost:5001}
       - VITE_FLASK_PROXY_TARGET=${VITE_FLASK_PROXY_TARGET:-http://app:5000}
       - VITE_LLM_MAX_CONCURRENT=${VITE_LLM_MAX_CONCURRENT:-2}
       # Keep compatibility with older env naming if someone still exports it.
