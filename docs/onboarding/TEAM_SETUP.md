@@ -20,7 +20,7 @@ cd IAM-Dashboard
 docker compose up -d --build
 ```
 
-**URLs:** Dashboard http://localhost:3001 · API http://localhost:5001 · Grafana http://localhost:3000 (admin/admin) · Prometheus http://localhost:9090
+**URLs:** Dashboard (Vite) http://localhost:3001 · API (Flask) http://localhost:5001 · Grafana http://localhost:3000 (admin/admin) · Prometheus http://localhost:9090
 
 ### Frontend data mode (dev-only)
 

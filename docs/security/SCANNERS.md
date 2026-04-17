@@ -209,7 +209,7 @@ ls -la scanner-results/
 ## Understanding Results
 
 ### OPA Results
-- **Format**: JSON output
+- **Format**: JSON output (container stdout/stderr captured to the file)
 - **Location**: `scanner-results/opa-results.json`
 - **What to look for**: 
   - `deny` messages indicate policy violations
