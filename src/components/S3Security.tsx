@@ -674,6 +674,17 @@ export function S3Security() {
   const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
   const { addScanResult } = useActiveScanResults();
   const { selectedAccount } = useAwsAccount();
+  const selectedAccountKey = selectedAccount?.id ?? "__none__";
+
+  useEffect(() => {
+    setScanResult(null);
+    setExpandedRows(new Set());
+    setWorkflows(S3_WORKFLOWS);
+    setCopiedCmd(null);
+    setSeverityFilter("ALL");
+    setStatusFilter("ALL");
+    setFindingSearch("");
+  }, [selectedAccountKey]);
 
   useEffect(() => {
     setScanResult({

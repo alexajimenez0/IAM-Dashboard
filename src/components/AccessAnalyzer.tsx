@@ -173,6 +173,17 @@ export function AccessAnalyzer() {
   const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
   const { addScanResult } = useActiveScanResults();
   const { selectedAccount } = useAwsAccount();
+  const selectedAccountKey = selectedAccount?.id ?? "__none__";
+
+  useEffect(() => {
+    setScanResult(null);
+    setWorkflows({});
+    setExpandedRow(null);
+    setError(null);
+    setSeverityFilter("all");
+    setTypeFilter("all");
+    setSearchTerm("");
+  }, [selectedAccountKey]);
 
   useEffect(() => {
     const findings = scanResult?.findings ?? [];

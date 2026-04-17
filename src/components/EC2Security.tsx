@@ -408,6 +408,19 @@ export function EC2Security() {
   const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
   const { addScanResult } = useActiveScanResults();
   const { selectedAccount } = useAwsAccount();
+  const selectedAccountKey = selectedAccount?.id ?? "__none__";
+
+  useEffect(() => {
+    setScanResult(null);
+    setError(null);
+    setExpandedRows(new Set());
+    setActiveTab({});
+    setWorkflows(INITIAL_WORKFLOWS);
+    setCopiedCmd(null);
+    setSeverityFilter("ALL");
+    setStatusFilter("ALL");
+    setFindingSearch("");
+  }, [selectedAccountKey]);
 
   useEffect(() => {
     setScanResult({

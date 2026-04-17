@@ -345,6 +345,20 @@ export function VPCSecurity() {
   const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
   const { addScanResult } = useActiveScanResults();
   const { selectedAccount } = useAwsAccount();
+  const selectedAccountKey = selectedAccount?.id ?? "__none__";
+
+  useEffect(() => {
+    setScanResult(null);
+    setError(null);
+    setExpandedRows(new Set());
+    setWorkflows({});
+    setWorkflowOverrides({});
+    setAssigneeByFinding({});
+    setTicketByFinding({});
+    setSeverityFilter("ALL");
+    setStatusFilter("ALL");
+    setFindingSearch("");
+  }, [selectedAccountKey]);
 
   // Auto-load mock data on mount
   useEffect(() => {

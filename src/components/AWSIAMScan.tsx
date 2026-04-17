@@ -184,6 +184,22 @@ export function AWSIAMScan() {
   const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
   const { addScanResult } = useActiveScanResults();
   const { selectedAccount } = useAwsAccount();
+  const selectedAccountKey = selectedAccount?.id ?? "__none__";
+
+  useEffect(() => {
+    setScanResult(null);
+    setWorkflows({});
+    setFindingStatuses({});
+    setExpandedRow(null);
+    setCurrentPage(1);
+    setError(null);
+    setFindingSearchTerm("");
+    setFindingSeverityFilter("all");
+    setFindingTypeFilter("all");
+    setFindingStatusFilter("all");
+    setStartDateFilter("");
+    setEndDateFilter("");
+  }, [selectedAccountKey]);
 
   // Initialise workflow state when findings arrive; seed from INITIAL_IAM_WORKFLOWS blueprint
   useEffect(() => {
