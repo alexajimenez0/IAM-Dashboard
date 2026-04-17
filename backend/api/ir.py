@@ -59,7 +59,9 @@ def _get_bedrock_client():
     # Without an API key, boto3 discovers credentials normally (env vars, IAM role, etc.)
     return boto3.client("bedrock-runtime", region_name=region)
 
-MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0")
+_DEFAULT_MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
+# Treat empty/whitespace env var as unset so invoke_model() never receives "".
+MODEL_ID = (os.environ.get("BEDROCK_MODEL_ID") or "").strip() or _DEFAULT_MODEL_ID
 
 # ─── Runbook structured-output constants ──────────────────────────────────────
 
