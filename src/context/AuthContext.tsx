@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getSession, login, logout, type AuthUser } from "../services/auth";
+import { clearAccountsCache } from "../services/accountCache";
 
 // Shared auth state exposed to the rest of the application.
 type AuthContextValue = {
@@ -39,10 +40,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(session.user);
           setError(null);
         } else {
+          clearAccountsCache();
           setUser(null);
           setError(null);
         }
       } catch {
+        clearAccountsCache();
         setUser(null);
         setError(null);
       } finally {
@@ -81,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             throw new Error("Failed to clear session.");
           }
 
+          clearAccountsCache();
           setUser(null);
           setError(null);
         } catch {

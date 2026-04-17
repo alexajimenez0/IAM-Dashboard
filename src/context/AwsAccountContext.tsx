@@ -11,6 +11,7 @@ import {
 import { useScanResults } from './ScanResultsContext';
 import { useAuth } from './AuthContext';
 import { getAccounts, type AccountRecord } from '../services/accounts';
+import { ACCOUNTS_CACHE_KEY } from '../services/accountCache';
 
 export interface AwsConnectedAccount {
   id: string;
@@ -19,7 +20,6 @@ export interface AwsConnectedAccount {
 }
 
 const STORAGE_SELECTED = 'iam-dashboard-selected-aws-account';
-const ACCOUNTS_CACHE_KEY = 'iam-dashboard-accounts-cache';
 const ACCOUNTS_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 const DATA_MODE = (import.meta.env.VITE_DATA_MODE || 'live').toLowerCase();
