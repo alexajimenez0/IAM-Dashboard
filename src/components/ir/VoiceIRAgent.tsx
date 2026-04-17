@@ -24,6 +24,7 @@ import { useVoiceIntent } from "../../hooks/useVoiceIntent";
 import type { ConversationTurn, FindingContext } from "../../hooks/useVoiceIntent";
 import type { IRActionType, IRActionResult } from "../../types/ir";
 import { ACTION_META } from "../../types/ir";
+import { AiAnalysisText, TRIAGE_LABELS } from "../ui/AiResponseRenderer";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type AgentStatus   = "standby" | "listening" | "processing" | "speaking" | "error";
@@ -45,6 +46,20 @@ interface TriageResult {
   confidence?: number;
   mitre?: string[];
   falsePositive?: number;
+}
+
+const _CONF_RE = /confidence[^0-9]*([0-1](?:\.\d+)?|\.\d+)/i;
+const _MITRE_RE = /\bT\d{4}(?:\.\d{3})?\b/g;
+
+function extractConfidence(text: string): number | undefined {
+  const m = _CONF_RE.exec(text);
+  if (!m) return undefined;
+  const v = parseFloat(m[1]);
+  return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : undefined;
+}
+
+function extractMitre(text: string): string[] {
+  return [...new Set(text.match(_MITRE_RE) ?? [])];
 }
 
 interface IRConfirmData {
@@ -554,8 +569,13 @@ function LLMTriageCard({ data, ts }: { data: TriageResult; ts: number }) {
       </div>
       {/* Summary */}
       <div style={{ padding: "8px 10px" }}>
-        <div style={{ fontSize: 7.5, color: "rgba(100,116,139,0.4)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em", marginBottom: 4 }}>ANALYSIS</div>
-        <div style={{ fontSize: 10.5, color: "#cbd5e1", lineHeight: 1.55 }}>{data.summary}</div>
+        <div style={{ fontSize: 7.5, color: "rgba(100,116,139,0.4)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em", marginBottom: 6 }}>ANALYSIS</div>
+        <AiAnalysisText
+          text={data.summary}
+          sectionLabels={TRIAGE_LABELS}
+          baseColor="#818cf8"
+          compact
+        />
         {data.falsePositive !== undefined && (
           <div style={{ marginTop: 6, fontSize: 9, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>
             False positive probability: <span style={{ color: "#a78bfa" }}>{Math.round(data.falsePositive * 100)}%</span>
@@ -847,10 +867,11 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
       });
 
       if (result?.triage_summary) {
+        const text = result.triage_summary;
         const triageData: TriageResult = {
-          summary:      result.triage_summary,
-          confidence:   result.confidence_score,
-          mitre:        result.mitre_techniques,
+          summary:      text,
+          confidence:   result.confidence_score   ?? extractConfidence(text),
+          mitre:        (result.mitre_techniques?.length ? result.mitre_techniques : null) ?? extractMitre(text),
           falsePositive: result.false_positive_probability,
         };
         setMessages(p => p.map(m =>

@@ -45,6 +45,7 @@ import { fetchLLMActionResult } from "../../services/irEngine";
 import { SeverityBadge } from "./SeverityBadge";
 import { IRActionEngine } from "../ir/IRActionEngine";
 import { EvidenceForensicsPanel } from "../ir/EvidenceForensicsPanel";
+import { AiAnalysisText, TRIAGE_LABELS, ROOT_CAUSE_LABELS } from "./AiResponseRenderer";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PUBLIC TYPES  (import from here in each scanner tab)
@@ -1045,20 +1046,24 @@ export function FindingDetailPanel({
                     {/* Triage Assessment */}
                     {overviewAi.triage ? (
                       <div>
-                        <div style={{ ...ls, marginBottom: 6 }}>Triage Assessment</div>
-                        <p style={{ fontSize: 13, color: "#e2e8f0", lineHeight: 1.7, margin: 0, whiteSpace: "pre-wrap" }}>
-                          {overviewAi.triage}
-                        </p>
+                        <div style={{ ...ls, marginBottom: 8 }}>Triage Assessment</div>
+                        <AiAnalysisText
+                          text={overviewAi.triage}
+                          sectionLabels={TRIAGE_LABELS}
+                          baseColor="#818cf8"
+                        />
                       </div>
                     ) : null}
 
                     {/* Root Cause */}
                     {overviewAi.rootCause ? (
                       <div>
-                        <div style={{ ...ls, marginBottom: 6 }}>Root Cause</div>
-                        <p style={{ fontSize: 12, color: "#cbd5e1", lineHeight: 1.65, margin: 0, whiteSpace: "pre-wrap" }}>
-                          {overviewAi.rootCause}
-                        </p>
+                        <div style={{ ...ls, marginBottom: 8 }}>Root Cause</div>
+                        <AiAnalysisText
+                          text={overviewAi.rootCause}
+                          sectionLabels={ROOT_CAUSE_LABELS}
+                          baseColor="#34d399"
+                        />
                       </div>
                     ) : null}
 

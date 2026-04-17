@@ -52,6 +52,7 @@ import {
   logAuditEntry,
 } from "../../services/irEngine";
 import type { FindingData } from "../ui/FindingDetailPanel";
+import { AiAnalysisText, TRIAGE_LABELS, ROOT_CAUSE_LABELS } from "../ui/AiResponseRenderer";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -341,87 +342,85 @@ function LLMResult({ result, type }: { result: IRActionResult; type: IRActionTyp
 
   if (type === "llm_triage" && result.triage_summary) {
     return (
-      <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-        <p style={{ fontSize: 11, color: "#e2e8f0", lineHeight: 1.7, margin: 0 }}>
-          {result.triage_summary}
-        </p>
-        <div style={{ display: "flex", gap: 6 }}>
-          {result.mitre_techniques?.map((t) => (
-            <span
-              key={t}
-              style={{
-                ...mono,
-                padding: "2px 8px",
-                borderRadius: 4,
-                background: "rgba(129,140,248,0.1)",
-                border: "1px solid rgba(129,140,248,0.22)",
-                fontSize: 10,
-                color: "#818cf8",
-                fontWeight: 700,
-              }}
-            >
-              {t}
-            </span>
-          ))}
-          {result.false_positive_probability !== undefined && (
-            <span
-              style={{
-                ...mono,
-                marginLeft: "auto",
-                fontSize: 10,
-                color:
-                  result.false_positive_probability < 0.1
-                    ? "#00ff88"
-                    : result.false_positive_probability < 0.4
-                    ? "#ffb000"
-                    : "#ff6b35",
-              }}
-            >
-              FP: {(result.false_positive_probability * 100).toFixed(0)}%
-            </span>
-          )}
-        </div>
+      <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+        <AiAnalysisText
+          text={result.triage_summary}
+          sectionLabels={TRIAGE_LABELS}
+          baseColor="#818cf8"
+          compact
+        />
+        {(result.mitre_techniques?.length || result.false_positive_probability !== undefined) && (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {result.mitre_techniques?.map((t) => (
+              <span
+                key={t}
+                style={{
+                  ...mono,
+                  padding: "2px 8px",
+                  borderRadius: 4,
+                  background: "rgba(129,140,248,0.1)",
+                  border: "1px solid rgba(129,140,248,0.22)",
+                  fontSize: 10,
+                  color: "#818cf8",
+                  fontWeight: 700,
+                }}
+              >
+                {t}
+              </span>
+            ))}
+            {result.false_positive_probability !== undefined && (
+              <span
+                style={{
+                  ...mono,
+                  marginLeft: "auto",
+                  fontSize: 10,
+                  color:
+                    result.false_positive_probability < 0.1
+                      ? "#00ff88"
+                      : result.false_positive_probability < 0.4
+                      ? "#ffb000"
+                      : "#ff6b35",
+                }}
+              >
+                FP: {(result.false_positive_probability * 100).toFixed(0)}%
+              </span>
+            )}
+          </div>
+        )}
       </div>
     );
   }
 
   if (type === "llm_root_cause" && result.root_cause_narrative) {
-    const lines = result.root_cause_narrative.split("\n\n");
     return (
-      <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
-        {lines.map((line, i) => (
-          <p
-            key={i}
-            style={{
-              fontSize: 11,
-              color: line.startsWith("**") ? "#e2e8f0" : "rgba(148,163,184,0.85)",
-              lineHeight: 1.7,
-              margin: 0,
-            }}
-            dangerouslySetInnerHTML={{
-              __html: line.replace(/\*\*(.*?)\*\*/g, "<strong style='color:#e2e8f0'>$1</strong>"),
-            }}
-          />
-        ))}
-        <div style={{ display: "flex", gap: 6 }}>
-          {result.mitre_techniques?.map((t) => (
-            <span
-              key={t}
-              style={{
-                ...mono,
-                padding: "2px 8px",
-                borderRadius: 4,
-                background: "rgba(129,140,248,0.1)",
-                border: "1px solid rgba(129,140,248,0.22)",
-                fontSize: 10,
-                color: "#818cf8",
-                fontWeight: 700,
-              }}
-            >
-              {t}
-            </span>
-          ))}
-        </div>
+      <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+        <AiAnalysisText
+          text={result.root_cause_narrative}
+          sectionLabels={ROOT_CAUSE_LABELS}
+          baseColor="#34d399"
+          compact
+        />
+        {result.mitre_techniques && result.mitre_techniques.length > 0 && (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {result.mitre_techniques.map((t) => (
+              <span
+                key={t}
+                style={{
+                  ...mono,
+                  padding: "2px 8px",
+                  borderRadius: 4,
+                  background: "rgba(129,140,248,0.1)",
+                  border: "1px solid rgba(129,140,248,0.22)",
+                  fontSize: 10,
+                  color: "#818cf8",
+                  fontWeight: 700,
+                }}
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
