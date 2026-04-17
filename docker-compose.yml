@@ -45,9 +45,12 @@ services:
       - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-${AWS_REGION:-us-east-1}}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      # Required when using temporary STS/SSO credentials (assumed role sessions)
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
       # Required for /api/v1/llm/* and /api/v1/voice/intent in Docker — set in host .env (never commit)
       - BEDROCK_API_KEY=${BEDROCK_API_KEY:-}
-      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-anthropic.claude-haiku-4-5}
+      # Must be provided via host .env/env.example (contains ':' which breaks some compose defaults)
+      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID}
       - SMTP_HOST=${SMTP_HOST:-mailhog}
       - SMTP_PORT=${SMTP_PORT:-1025}
       - SMTP_USERNAME=${SMTP_USERNAME:-}

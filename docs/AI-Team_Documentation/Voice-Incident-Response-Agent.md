@@ -387,7 +387,7 @@ So: **Gateway = how traffic enters AWS**; **which environment** depends on **whi
 ### ✅ Phase 2 — AWS Setup (COMPLETE)
 - [x] Bedrock API key generated from AWS Console → Bedrock → API keys
 - [x] `BEDROCK_API_KEY` added to `.env`
-- [x] `BEDROCK_MODEL_ID=anthropic.claude-haiku-4-5` added to `.env` (Claude 4.5 Haiku — near-frontier performance at Haiku pricing, available on Bedrock since Oct 2025)
+- [x] `BEDROCK_MODEL_ID=anthropic.claude-3-haiku-20240307-v1:0` added to `.env`
 - [x] `AWS_DEFAULT_REGION=us-east-1` confirmed in `.env`
 - [x] `AmazonBedrockFullAccess`, `AmazonTranscribeFullAccess`, `AmazonPollyFullAccess` attached to IAM user
 - [x] Credential strategy decided: long-term Bedrock API key in `.env` for local Docker dev, IAM role for production Lambda
@@ -403,7 +403,7 @@ So: **Gateway = how traffic enters AWS**; **which environment** depends on **whi
 - [x] `/api/v1/llm/triage` — now calls Claude with finding context, returns real triage summary
 - [x] `/api/v1/llm/root-cause` — now calls Claude for root cause narrative
 - [x] `/api/v1/llm/runbook` — now calls Claude for markdown IR runbook with IDENTIFY/CONTAIN/ERADICATE/RECOVER phases
-- [x] Live/mock toggle — `model: "anthropic.claude-haiku-4-5"` in response = live, `model: "mock"` = fallback
+- [x] Live/mock toggle — `model: "anthropic.claude-3-haiku-20240307-v1:0"` in response = live, `model: "mock"` = fallback
 - [x] `VITE_IR_API_BASE=http://localhost:3001/api/v1` added to `.env`
 - [x] `VITE_FLASK_PROXY_TARGET=http://app:5000` added to `.env` — fixes Vite proxy forwarding to Flask in Docker
 - [x] `VITE_LLM_MAX_CONCURRENT=2` added to `.env` — prevents Bedrock flooding across concurrent finding rows

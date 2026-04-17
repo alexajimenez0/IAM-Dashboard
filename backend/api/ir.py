@@ -27,6 +27,7 @@ Architecture notes:
 
 import json
 import logging
+import re
 import uuid
 import time
 import os
@@ -58,7 +59,9 @@ def _get_bedrock_client():
     # Without an API key, boto3 discovers credentials normally (env vars, IAM role, etc.)
     return boto3.client("bedrock-runtime", region_name=region)
 
-MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-haiku-4-5-20251001")
+_DEFAULT_MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
+# Treat empty/whitespace env var as unset so invoke_model() never receives "".
+MODEL_ID = (os.environ.get("BEDROCK_MODEL_ID") or "").strip() or _DEFAULT_MODEL_ID
 
 # ─── Runbook structured-output constants ──────────────────────────────────────
 
@@ -223,6 +226,35 @@ def _mock_execute_job(job_id: str) -> None:
     job["_mock_complete_at"] = time.time() + 3
 
 
+# ─── LLM prose extractors ─────────────────────────────────────────────────────
+
+_CONFIDENCE_RE = re.compile(
+    r"confidence[^0-9]*([0-1](?:\.\d+)?|\.\d+)",
+    re.IGNORECASE,
+)
+_MITRE_RE = re.compile(r"\bT\d{4}(?:\.\d{3})?\b")
+
+
+def _extract_confidence(text: str) -> float | None:
+    """Parse first confidence score (0–1) from Claude's prose."""
+    m = _CONFIDENCE_RE.search(text)
+    if not m:
+        return None
+    try:
+        val = float(m.group(1))
+        return round(max(0.0, min(1.0, val)), 4)
+    except ValueError:
+        return None
+
+
+def _extract_mitre(text: str) -> list[str]:
+    """Extract unique MITRE ATT&CK technique IDs (e.g. T1078) from prose."""
+    seen: dict[str, None] = {}
+    for t in _MITRE_RE.findall(text):
+        seen[t] = None
+    return list(seen.keys())
+
+
 # ─── LLM endpoints ────────────────────────────────────────────────────────────
 
 class LLMTriageResource(Resource):
@@ -264,13 +296,15 @@ class LLMTriageResource(Resource):
         job = _job_store[job_id]
         job["status"] = "succeeded"
         job["completed_at"] = _now_iso()
-        # When Bedrock returns real prose, omit mock confidence/MITRE fields — mixing
-        # fabricated metadata with real LLM text misleads the operator.
         if llm_response:
-            job["result"] = {
-                "triage_summary": llm_response,
-                "model": MODEL_ID,
-            }
+            result: dict = {"triage_summary": llm_response, "model": MODEL_ID}
+            conf = _extract_confidence(llm_response)
+            if conf is not None:
+                result["confidence_score"] = conf
+            mitre = _extract_mitre(llm_response)
+            if mitre:
+                result["mitre_techniques"] = mitre
+            job["result"] = result
         else:
             job["result"] = {**mock, "model": "mock"}
 
@@ -322,12 +356,12 @@ class LLMRootCauseResource(Resource):
         job = _job_store[job_id]
         job["status"] = "succeeded"
         job["completed_at"] = _now_iso()
-        # Same rule as triage: omit mock MITRE techniques when Bedrock returns real prose.
         if llm_response:
-            job["result"] = {
-                "root_cause_narrative": llm_response,
-                "model": MODEL_ID,
-            }
+            rc_result: dict = {"root_cause_narrative": llm_response, "model": MODEL_ID}
+            mitre = _extract_mitre(llm_response)
+            if mitre:
+                rc_result["mitre_techniques"] = mitre
+            job["result"] = rc_result
         else:
             job["result"] = {**mock, "model": "mock"}
 
