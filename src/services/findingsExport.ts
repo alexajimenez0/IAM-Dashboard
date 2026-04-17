@@ -1,10 +1,24 @@
 /**
  * CSV export against the Flask backend (/api/findings/export/csv).
+ *
+ * Base URL resolution:
+ * 1. `VITE_FLASK_API_URL` when set (e.g. `http://localhost:5001` for Docker host → Flask).
+ * 2. In Vite dev (`import.meta.env.DEV`), empty string → same-origin requests so
+ *    `vite.config` can proxy `/api/findings` to Flask (avoids wrong port / 404).
+ * 3. Otherwise `http://localhost:5001` (matches docker-compose `app` port publish).
  */
+function resolveFlaskApiBase(): string {
+  const raw = (import.meta.env.VITE_FLASK_API_URL as string | undefined)?.replace(/\/$/, "");
+  if (raw && raw.trim()) {
+    return raw.trim();
+  }
+  if (import.meta.env.DEV) {
+    return "";
+  }
+  return "http://localhost:5001";
+}
 
-export const FLASK_API_BASE =
-  (import.meta.env.VITE_FLASK_API_URL as string | undefined)?.replace(/\/$/, "") ||
-  "http://localhost:5001";
+export const FLASK_API_BASE = resolveFlaskApiBase();
 
 export type ExportSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 export type ExportFindingStatus = "OPEN" | "RESOLVED" | "SUPPRESSED";
@@ -34,7 +48,8 @@ export function buildFindingsExportQueryString(filters: FindingsExportFilters): 
 }
 
 /**
- * Uses fetch + Blob so Authorization headers work when JWT_SECRET is set on the backend.
+ * Uses fetch + Blob. When the backend has JWT_SECRET set, send a Bearer token from
+ * localStorage (`access_token` or `jwt`) only — never from a VITE_* env var (those ship in the bundle).
  */
 export async function downloadFindingsCsv(filters: FindingsExportFilters): Promise<void> {
   const qs = buildFindingsExportQueryString(filters);
@@ -42,15 +57,25 @@ export async function downloadFindingsCsv(filters: FindingsExportFilters): Promi
   const headers: HeadersInit = {};
   const token =
     (typeof localStorage !== "undefined" && localStorage.getItem("access_token")) ||
-    (typeof localStorage !== "undefined" && localStorage.getItem("jwt")) ||
-    (import.meta.env.VITE_JWT_TOKEN as string | undefined);
+    (typeof localStorage !== "undefined" && localStorage.getItem("jwt"));
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
   const res = await fetch(url, { headers });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || `Export failed (${res.status})`);
+    let detail = text?.trim() || "";
+    try {
+      const j = JSON.parse(text) as { message?: string; error?: string };
+      if (j.message) {
+        detail = j.message;
+      } else if (j.error) {
+        detail = j.error;
+      }
+    } catch {
+      /* plain-text error body */
+    }
+    throw new Error(detail || `Export failed (${res.status})`);
   }
   const blob = await res.blob();
   const cd = res.headers.get("Content-Disposition");

@@ -6,7 +6,7 @@ import os
 import logging
 import json
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, Iterator, List, Optional
 import boto3
 from botocore.exceptions import ClientError
 
@@ -130,22 +130,32 @@ class DynamoDBService:
             logger.error(f"DynamoDB error creating IAM finding: {str(e)}")
             return False
 
-    def list_all_iam_findings(self) -> List[Dict]:
-        """Return all IAM finding items via paginated table scan."""
-        items: List[Dict[str, Any]] = []
+    def iter_iam_findings_pages(self) -> Iterator[List[Dict[str, Any]]]:
+        """Yield each page of IAM findings from a paginated table scan.
+
+        Callers can process rows incrementally instead of buffering the full table
+        in memory before returning.
+        """
         kwargs: Dict[str, Any] = {}
         try:
             while True:
                 response = self.iam_findings.scan(**kwargs)
-                items.extend(response.get("Items", []))
+                page = response.get("Items") or []
+                yield page
                 lek = response.get("LastEvaluatedKey")
                 if not lek:
                     break
                 kwargs["ExclusiveStartKey"] = lek
-            return items
         except ClientError as e:
             logger.error(f"DynamoDB error scanning IAM findings: {str(e)}")
             raise
+
+    def list_all_iam_findings(self) -> List[Dict]:
+        """Return all IAM finding items via paginated table scan (loads full table)."""
+        items: List[Dict[str, Any]] = []
+        for page in self.iter_iam_findings_pages():
+            items.extend(page)
+        return items
 
     def get_iam_findings_by_resource(self, resource_type: str, severity: str = None) -> List[Dict]:
         """Get IAM findings by resource type and severity"""

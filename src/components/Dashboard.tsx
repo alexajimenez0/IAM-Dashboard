@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Button } from "./ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import { Skeleton } from "./ui/skeleton";
 import { PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, ComposedChart, Line } from 'recharts';
-import { Play, AlertTriangle, CheckCircle, Clock, Shield, HardDrive, Zap, RefreshCw, Cloud, Users, Network, Database, ArrowUpRight, Activity, Target, ChevronDown, ChevronRight, AlertOctagon, TrendingUp, TrendingDown, Server, Cpu, BarChart2, Lock, Download } from "lucide-react";
+import { Play, AlertTriangle, CheckCircle, Clock, Shield, HardDrive, Zap, RefreshCw, Cloud, Users, Network, Database, ArrowUpRight, Activity, Target, ChevronDown, ChevronRight, AlertOctagon, TrendingUp, TrendingDown, Server, Cpu, BarChart2, Lock } from "lucide-react";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanFull, getDashboardData, getSecurityHubSummary, type ScanResponse, type DashboardData } from "../services/api";
 import { useAwsAccount } from "../context/AwsAccountContext";
@@ -20,23 +19,6 @@ import { FindingsTablePagination } from "./FindingsTablePagination";
 import { FindingDetailPanel, type WorkflowData, type WorkflowStatus, type TimelineEvent, type FindingData } from "./ui/FindingDetailPanel";
 import { GlobePulse, AWS_REGION_MARKERS } from "./ui/cobe-globe-pulse";
 import { SeverityBadge } from "./ui/SeverityBadge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "./ui/dialog";
-import { Checkbox } from "./ui/checkbox";
-import { Label } from "./ui/label";
-import { Input } from "./ui/input";
-import {
-  downloadFindingsCsv,
-  type ExportFindingStatus,
-  type ExportSeverity,
-} from "../services/findingsExport";
-
 // ── Workflow constants — module-level so they aren't recreated every render ──
 const IR_PIPELINE: WorkflowStatus[] = ["NEW", "TRIAGED", "ASSIGNED", "IN_PROGRESS", "PENDING_VERIFY", "REMEDIATED"];
 const IR_NEXT: Partial<Record<WorkflowStatus, WorkflowStatus>> = {
@@ -204,9 +186,6 @@ function buildFullScanReport(scanResponse?: ScanResponse): ReportRecord {
   };
 }
 
-const EXPORT_SEVERITIES: ExportSeverity[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
-const EXPORT_STATUSES: ExportFindingStatus[] = ["OPEN", "RESOLVED", "SUPPRESSED"];
-
 export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
   const [statsLoading, setStatsLoading] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
@@ -238,50 +217,6 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
   const statsRef = useRef(stats);
   const wasScanning = useRef(false);
   const [scanDelta, setScanDelta] = useState<{ critical: number; high: number; total: number; compliance: number } | null>(null);
-
-  const [exportDialogOpen, setExportDialogOpen] = useState(false);
-  const [exportLoading, setExportLoading] = useState(false);
-  const [exportSeverities, setExportSeverities] = useState<Set<ExportSeverity>>(() => new Set());
-  const [exportStatuses, setExportStatuses] = useState<Set<ExportFindingStatus>>(() => new Set());
-  const [exportStart, setExportStart] = useState("");
-  const [exportEnd, setExportEnd] = useState("");
-
-  const toggleExportSeverity = (s: ExportSeverity) => {
-    setExportSeverities((prev) => {
-      const next = new Set(prev);
-      if (next.has(s)) next.delete(s);
-      else next.add(s);
-      return next;
-    });
-  };
-
-  const toggleExportStatus = (s: ExportFindingStatus) => {
-    setExportStatuses((prev) => {
-      const next = new Set(prev);
-      if (next.has(s)) next.delete(s);
-      else next.add(s);
-      return next;
-    });
-  };
-
-  const handleConfirmExportCsv = async () => {
-    setExportLoading(true);
-    try {
-      await downloadFindingsCsv({
-        severities: Array.from(exportSeverities),
-        statuses: Array.from(exportStatuses),
-        startDate: exportStart,
-        endDate: exportEnd,
-      });
-      toast.success("CSV export started");
-      setExportDialogOpen(false);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Export failed";
-      toast.error("Could not export findings", { description: msg });
-    } finally {
-      setExportLoading(false);
-    }
-  };
 
   const generateWeeklyTrends = useCallback((summary: any, compliance: any) => {
     // Generate placeholder weekly trends based on current compliance score
@@ -1998,14 +1933,6 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                   onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.color = "rgba(100,116,139,0.7)"; }}
                 >Full Compliance View</button>
                 <button
-                  type="button"
-                  onClick={() => setExportDialogOpen(true)}
-                  style={{ fontSize: 11, fontWeight: 600, color: "rgba(0,255,136,0.85)", background: "rgba(0,255,136,0.06)", border: "1px solid rgba(0,255,136,0.22)", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.1s", display: "flex", alignItems: "center", gap: 6 }}
-                >
-                  <Download size={11} />
-                  Export CSV
-                </button>
-                <button
                   onClick={() => onNavigate?.("reports")}
                   style={{ fontSize: 11, fontWeight: 600, color: "#00ff88", background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.22)", borderRadius: 6, padding: "4px 16px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.1s" }}
                   onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,255,136,0.14)"; e.currentTarget.style.borderColor = "rgba(0,255,136,0.36)"; }}
@@ -2041,86 +1968,6 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
         ))}
       </div>
 
-      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
-        <DialogContent className="sm:max-w-md border-border bg-card">
-          <DialogHeader>
-            <DialogTitle>Export findings (CSV)</DialogTitle>
-            <DialogDescription>
-              Optional filters. Leave severity and status unchecked to include all values.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label className="text-muted-foreground">Severity</Label>
-              <div className="flex flex-wrap gap-3">
-                {EXPORT_SEVERITIES.map((s) => (
-                  <label key={s} className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Checkbox
-                      checked={exportSeverities.has(s)}
-                      onCheckedChange={() => toggleExportSeverity(s)}
-                    />
-                    {s}
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-muted-foreground">Status</Label>
-              <div className="flex flex-wrap gap-3">
-                {EXPORT_STATUSES.map((s) => (
-                  <label key={s} className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Checkbox
-                      checked={exportStatuses.has(s)}
-                      onCheckedChange={() => toggleExportStatus(s)}
-                    />
-                    {s}
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="export-start">Start (optional)</Label>
-                <Input
-                  id="export-start"
-                  type="datetime-local"
-                  value={exportStart}
-                  onChange={(e) => setExportStart(e.target.value)}
-                  className="bg-background"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="export-end">End (optional)</Label>
-                <Input
-                  id="export-end"
-                  type="datetime-local"
-                  value={exportEnd}
-                  onChange={(e) => setExportEnd(e.target.value)}
-                  className="bg-background"
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setExportDialogOpen(false)}
-              disabled={exportLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              className="bg-primary text-primary-foreground"
-              onClick={handleConfirmExportCsv}
-              disabled={exportLoading}
-            >
-              {exportLoading ? "Exporting…" : "Download CSV"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

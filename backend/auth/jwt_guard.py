@@ -1,9 +1,12 @@
 """
 Optional HS256 JWT verification for API routes (stdlib only).
 
-If JWT_SECRET is not set, auth is skipped so local dev matches existing
-unauthenticated API resources. When JWT_SECRET is set, requests must include
-Authorization: Bearer <jwt> with a valid HS256 signature.
+Secret resolution: ``JWT_SECRET``, then ``JWT_SECRET_KEY`` (common alternate name).
+
+If no secret is configured, the view runs **unauthenticated** only when
+``FLASK_ENV=development`` **or** ``ALLOW_INSECURE_JWT`` is truthy; otherwise the
+handler returns **503** and the view is not invoked. When a secret is set,
+``Authorization: Bearer <jwt>`` must carry a valid HS256 JWT.
 """
 
 from __future__ import annotations
@@ -21,6 +24,23 @@ from typing import Callable
 from flask import jsonify, request
 
 logger = logging.getLogger(__name__)
+
+
+def _jwt_secret() -> str:
+    """Return the configured HS256 signing secret, if any."""
+    for key in ("JWT_SECRET", "JWT_SECRET_KEY"):
+        raw = os.environ.get(key)
+        if raw and str(raw).strip():
+            return str(raw).strip()
+    return ""
+
+
+def _jwt_insecure_bypass_allowed() -> bool:
+    """True only when operators explicitly allow running without JWT verification."""
+    if os.environ.get("FLASK_ENV", "").strip().lower() == "development":
+        return True
+    flag = os.environ.get("ALLOW_INSECURE_JWT", "")
+    return str(flag).strip().lower() in ("1", "true", "yes")
 
 
 def _b64url_decode(data: str) -> bytes:
@@ -59,21 +79,27 @@ def verify_jwt_hs256(token: str, secret: str) -> bool:
 
 
 def require_jwt(view_func: Callable):
-    """
-    Protect a view when JWT_SECRET is set; otherwise no-op (dev parity with
-    other Flask resources in this repo).
-    """
+    """Protect a view when a JWT secret is set; otherwise gated insecure bypass."""
 
     @wraps(view_func)
     def wrapped(*args, **kwargs):
-        secret = os.environ.get("JWT_SECRET", "").strip()
+        secret = _jwt_secret()
         if not secret:
-            if os.environ.get("FLASK_ENV") == "development":
+            if _jwt_insecure_bypass_allowed():
                 return view_func(*args, **kwargs)
-            logger.critical("JWT_SECRET is not configured")
+            logger.critical(
+                "JWT signing secret not configured (set JWT_SECRET or JWT_SECRET_KEY, "
+                "or use FLASK_ENV=development / ALLOW_INSECURE_JWT only for local dev)"
+            )
             return (
                 jsonify(
-                    {"error": "Service unavailable", "message": "JWT auth is not configured"}
+                    {
+                        "error": "Service unavailable",
+                        "message": (
+                            "JWT auth is not configured. Set JWT_SECRET or JWT_SECRET_KEY, "
+                            "or set ALLOW_INSECURE_JWT=true for explicit non-production bypass."
+                        ),
+                    }
                 ),
                 503,
             )
