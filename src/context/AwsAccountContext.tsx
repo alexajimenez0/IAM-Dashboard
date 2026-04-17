@@ -23,7 +23,7 @@ const STORAGE_SELECTED = 'iam-dashboard-selected-aws-account';
 const ACCOUNTS_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 const DATA_MODE = (import.meta.env.VITE_DATA_MODE || 'live').toLowerCase();
-const IS_MOCK = DATA_MODE === 'mock';
+const IS_MOCK = import.meta.env.DEV && DATA_MODE === 'mock';
 
 /** Mock connections used in mock mode. IDs align with scan storage keys. */
 export const MOCK_AWS_ACCOUNTS: AwsConnectedAccount[] = [
@@ -218,6 +218,8 @@ export function AwsAccountProvider({ children }: { children: ReactNode }) {
     if (auth.isAuthenticated) {
       void fetchAccounts(false);
     } else {
+      setAccounts([FALLBACK_MAIN_ACCOUNT]);
+      setSelectedId(FALLBACK_MAIN_ACCOUNT.id);
       setIsLoadingAccounts(false);
     }
   }, [auth.isLoading, auth.isAuthenticated, fetchAccounts]);
