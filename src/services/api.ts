@@ -26,6 +26,7 @@ export type ScannerType =
 
 export interface ScanRequest {
   region?: string;
+  account_id?: string;
   scan_parameters?: Record<string, any>;
 }
 
@@ -136,10 +137,15 @@ export async function triggerScan(
   scannerType: ScannerType,
   request: ScanRequest = {}
 ): Promise<ScanResponse> {
-  const body: ScanRequest = {
+  const { account_id: _ignoredAccountId, ...scanParameters } = request.scan_parameters ?? {};
+  const body: Record<string, any> = {
     region: request.region || 'us-east-1',
-    ...request.scan_parameters,
+    ...scanParameters,
   };
+  const accountId = request.account_id?.trim();
+  if (accountId) {
+    body.account_id = accountId;
+  }
 
   return apiRequest<ScanResponse>(`/scan/${scannerType}`, {
     method: 'POST',
@@ -150,64 +156,64 @@ export async function triggerScan(
 /**
  * Security Hub scan
  */
-export async function scanSecurityHub(region: string = 'us-east-1'): Promise<ScanResponse> {
-  return triggerScan('security-hub', { region });
+export async function scanSecurityHub(region: string = 'us-east-1', accountId?: string): Promise<ScanResponse> {
+  return triggerScan('security-hub', { region, account_id: accountId });
 }
 
 /**
  * GuardDuty scan
  */
-export async function scanGuardDuty(region: string = 'us-east-1'): Promise<ScanResponse> {
-  return triggerScan('guardduty', { region });
+export async function scanGuardDuty(region: string = 'us-east-1', accountId?: string): Promise<ScanResponse> {
+  return triggerScan('guardduty', { region, account_id: accountId });
 }
 
 /**
  * AWS Config scan
  */
-export async function scanConfig(region: string = 'us-east-1'): Promise<ScanResponse> {
-  return triggerScan('config', { region });
+export async function scanConfig(region: string = 'us-east-1', accountId?: string): Promise<ScanResponse> {
+  return triggerScan('config', { region, account_id: accountId });
 }
 
 /**
  * Inspector scan
  */
-export async function scanInspector(region: string = 'us-east-1'): Promise<ScanResponse> {
-  return triggerScan('inspector', { region });
+export async function scanInspector(region: string = 'us-east-1', accountId?: string): Promise<ScanResponse> {
+  return triggerScan('inspector', { region, account_id: accountId });
 }
 
 /**
  * Macie scan
  */
-export async function scanMacie(region: string = 'us-east-1'): Promise<ScanResponse> {
-  return triggerScan('macie', { region });
+export async function scanMacie(region: string = 'us-east-1', accountId?: string): Promise<ScanResponse> {
+  return triggerScan('macie', { region, account_id: accountId });
 }
 
 /**
  * IAM scan
  */
-export async function scanIAM(region: string = 'us-east-1'): Promise<ScanResponse> {
-  return triggerScan('iam', { region });
+export async function scanIAM(region: string = 'us-east-1', accountId?: string): Promise<ScanResponse> {
+  return triggerScan('iam', { region, account_id: accountId });
 }
 
 /**
  * EC2 scan
  */
-export async function scanEC2(region: string = 'us-east-1'): Promise<ScanResponse> {
-  return triggerScan('ec2', { region });
+export async function scanEC2(region: string = 'us-east-1', accountId?: string): Promise<ScanResponse> {
+  return triggerScan('ec2', { region, account_id: accountId });
 }
 
 /**
  * S3 scan
  */
-export async function scanS3(region: string = 'us-east-1'): Promise<ScanResponse> {
-  return triggerScan('s3', { region });
+export async function scanS3(region: string = 'us-east-1', accountId?: string): Promise<ScanResponse> {
+  return triggerScan('s3', { region, account_id: accountId });
 }
 
 /**
  * Full scan (all scanners)
  */
-export async function scanFull(region: string = 'us-east-1'): Promise<ScanResponse> {
-  return triggerScan('full', { region });
+export async function scanFull(region: string = 'us-east-1', accountId?: string): Promise<ScanResponse> {
+  return triggerScan('full', { region, account_id: accountId });
 }
 
 /**

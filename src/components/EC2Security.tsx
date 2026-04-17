@@ -40,6 +40,7 @@ import {
 import { toast } from "sonner";
 import { scanEC2, type ScanResponse } from "../services/api";
 import { useActiveScanResults } from "../hooks/useActiveScanResults";
+import { useAwsAccount } from "../context/AwsAccountContext";
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard } from "./ui/StatCard";
@@ -406,6 +407,20 @@ export function EC2Security() {
   const [workflows, setWorkflows] = useState<Record<string, FindingWorkflow>>(INITIAL_WORKFLOWS);
   const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
   const { addScanResult } = useActiveScanResults();
+  const { selectedAccount } = useAwsAccount();
+  const selectedAccountKey = selectedAccount?.id ?? "__none__";
+
+  useEffect(() => {
+    setScanResult(null);
+    setError(null);
+    setExpandedRows(new Set());
+    setActiveTab({});
+    setWorkflows(INITIAL_WORKFLOWS);
+    setCopiedCmd(null);
+    setSeverityFilter("ALL");
+    setStatusFilter("ALL");
+    setFindingSearch("");
+  }, [selectedAccountKey]);
 
   useEffect(() => {
     setScanResult({
@@ -427,7 +442,7 @@ export function EC2Security() {
     try {
       toast.info("EC2 security scan started");
       setScanResult({ scan_id: "loading", status: "Running", progress: 0, account_id: "", region: selectedRegion, total_instances: 0, findings: [], scan_summary: { running_instances: 0, stopped_instances: 0, critical_findings: 0, high_findings: 0, medium_findings: 0, low_findings: 0, publicly_accessible: 0, unencrypted_volumes: 0 } });
-      const response: ScanResponse = await scanEC2(selectedRegion);
+      const response: ScanResponse = await scanEC2(selectedRegion, selectedAccount?.accountId || undefined);
       setScanResult({ scan_id: response.scan_id, status: response.status === "completed" ? "Completed" : "Failed", progress: 100, account_id: response.results?.account_id || "N/A", region: response.region, total_instances: response.results?.instances?.total || 0, findings: response.results?.findings || mockFindings, scan_summary: { running_instances: response.results?.instances?.running || 0, stopped_instances: response.results?.instances?.stopped || 0, publicly_accessible: response.results?.instances?.public || 0, unencrypted_volumes: response.results?.instances?.unencrypted_volumes || 0, critical_findings: 0, high_findings: 0, medium_findings: 0, low_findings: 0 } });
       setIsScanning(false); addScanResult(response);
     } catch (err) {

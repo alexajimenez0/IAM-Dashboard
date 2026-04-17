@@ -4,10 +4,14 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
 import { useScanResults } from './ScanResultsContext';
+import { useAuth } from './AuthContext';
+import { getAccounts, type AccountRecord } from '../services/accounts';
+import { ACCOUNTS_CACHE_KEY } from '../services/accountCache';
 
 export interface AwsConnectedAccount {
   id: string;
@@ -16,46 +20,82 @@ export interface AwsConnectedAccount {
 }
 
 const STORAGE_SELECTED = 'iam-dashboard-selected-aws-account';
+const ACCOUNTS_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
-/** Mock connections until the backend provides a real list. IDs align with scan storage keys. */
+const DATA_MODE = (import.meta.env.VITE_DATA_MODE || 'live').toLowerCase();
+const IS_MOCK = import.meta.env.DEV && DATA_MODE === 'mock';
+
+/** Mock connections used in mock mode. IDs align with scan storage keys. */
 export const MOCK_AWS_ACCOUNTS: AwsConnectedAccount[] = [
   { id: 'mock-prod', label: 'Production', accountId: '111122223333' },
   { id: 'mock-staging', label: 'Staging', accountId: '222233334444' },
   { id: 'mock-dev', label: 'Development', accountId: '333344445555' },
 ];
 
-function parseAccountsFromEnv(): AwsConnectedAccount[] {
-  const raw = import.meta.env.VITE_AWS_ACCOUNTS as string | undefined;
-  if (raw === undefined || raw.trim() === '') {
-    return MOCK_AWS_ACCOUNTS;
-  }
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
-      return MOCK_AWS_ACCOUNTS;
-    }
-    if (parsed.length === 0) {
-      return [];
-    }
-    const mapped: AwsConnectedAccount[] = [];
-    for (let i = 0; i < parsed.length; i++) {
-      const row = parsed[i] as Record<string, unknown>;
-      const id =
-        typeof row.id === 'string' && row.id.trim()
-          ? row.id.trim()
-          : `account-${i}`;
-      const label =
-        typeof row.label === 'string' && row.label.trim()
-          ? row.label.trim()
-          : id;
+/** Fallback used in live mode when GET /accounts fails or returns nothing. */
+const FALLBACK_MAIN_ACCOUNT: AwsConnectedAccount = {
+  id: 'main',
+  label: 'Main Account',
+  accountId: '',
+};
+
+interface CachedAccountsPayload {
+  timestamp: number;
+  accounts: AwsConnectedAccount[];
+}
+
+function normalizeCachedAccounts(accounts: unknown): AwsConnectedAccount[] {
+  if (!Array.isArray(accounts)) return [];
+  return accounts
+    .filter((a): a is Record<string, unknown> => typeof a === 'object' && a !== null)
+    .map((a) => {
       const accountId =
-        typeof row.accountId === 'string' ? row.accountId.trim() : '';
-      mapped.push({ id, label, accountId });
-    }
-    return mapped.length > 0 ? mapped : [];
+        typeof a.accountId === 'string' && a.accountId.trim()
+          ? a.accountId.trim()
+          : '';
+      if (!accountId) return null;
+      const label =
+        typeof a.label === 'string' && a.label.trim()
+          ? a.label.trim()
+          : accountId;
+      return { id: accountId, label, accountId };
+    })
+    .filter((a): a is AwsConnectedAccount => a !== null);
+}
+
+function readCachedAccounts(): AwsConnectedAccount[] | null {
+  try {
+    const raw = sessionStorage.getItem(ACCOUNTS_CACHE_KEY);
+    if (!raw) return null;
+    const payload = JSON.parse(raw) as CachedAccountsPayload;
+    if (Date.now() - payload.timestamp > ACCOUNTS_CACHE_TTL_MS) return null;
+    const accounts = normalizeCachedAccounts(payload.accounts);
+    return accounts.length > 0 ? accounts : null;
   } catch {
-    return MOCK_AWS_ACCOUNTS;
+    return null;
   }
+}
+
+function writeCachedAccounts(accounts: AwsConnectedAccount[]): void {
+  try {
+    const payload: CachedAccountsPayload = { timestamp: Date.now(), accounts };
+    sessionStorage.setItem(ACCOUNTS_CACHE_KEY, JSON.stringify(payload));
+  } catch {
+    /* ignore */
+  }
+}
+
+function mapAccountRecords(records: AccountRecord[]): AwsConnectedAccount[] {
+  return records
+    .filter((a) => typeof a.account_id === 'string' && a.account_id.trim())
+    .map((a) => {
+      const accountId = a.account_id.trim();
+      const accountName =
+        typeof a.account_name === 'string' && a.account_name.trim()
+          ? a.account_name.trim()
+          : accountId;
+      return { id: accountId, label: accountName, accountId };
+    });
 }
 
 function readStoredSelectedId(): string | null {
@@ -77,9 +117,11 @@ function writeStoredSelectedId(id: string): void {
 
 interface AwsAccountContextValue {
   accounts: AwsConnectedAccount[];
-  /** Null when no accounts are connected */
   selectedAccount: AwsConnectedAccount | null;
   selectAccount: (id: string) => void;
+  isLoadingAccounts: boolean;
+  accountsError: string | null;
+  refreshAccounts: () => Promise<void>;
 }
 
 const AwsAccountContext = createContext<AwsAccountContextValue | undefined>(
@@ -88,40 +130,122 @@ const AwsAccountContext = createContext<AwsAccountContextValue | undefined>(
 
 export function AwsAccountProvider({ children }: { children: ReactNode }) {
   const { ensureMockFullScanIfEmpty } = useScanResults();
-  const accounts = useMemo(() => parseAccountsFromEnv(), []);
+  const auth = useAuth();
 
-  const initialId = useMemo(() => {
-    if (accounts.length === 0) return null;
+  // Initialize from cache in live mode if available
+  const initialAccounts = useMemo(() => {
+    if (IS_MOCK) return MOCK_AWS_ACCOUNTS;
+    const cached = readCachedAccounts();
+    return cached ?? [FALLBACK_MAIN_ACCOUNT];
+  }, []);
+
+  const [accounts, setAccounts] = useState<AwsConnectedAccount[]>(initialAccounts);
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    if (initialAccounts.length === 0) return null;
     const stored = readStoredSelectedId();
-    if (stored && accounts.some((a: AwsConnectedAccount) => a.id === stored))
-      return stored;
-    return accounts[0].id;
-  }, [accounts]);
+    if (stored && initialAccounts.some((a) => a.id === stored)) return stored;
+    return initialAccounts[0].id;
+  });
 
-  const [selectedId, setSelectedId] = useState<string | null>(initialId);
+  // In live mode, start loading only if no fresh cache
+  const hasFreshCache = !IS_MOCK && readCachedAccounts() !== null;
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(!IS_MOCK && !hasFreshCache);
+  const [accountsError, setAccountsError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const applyAccounts = useCallback((next: AwsConnectedAccount[]) => {
+    setAccounts(next);
+    setSelectedId((prev) => {
+      const stored = prev ?? readStoredSelectedId();
+      if (stored && next.some((a) => a.id === stored)) return stored;
+      const first = next[0]?.id ?? null;
+      if (first) writeStoredSelectedId(first);
+      return first;
+    });
+  }, []);
+
+  const fetchAccounts = useCallback(async (bypassCache: boolean) => {
+    if (IS_MOCK) return;
+
+    // Use cache if fresh and not bypassing
+    if (!bypassCache) {
+      const cached = readCachedAccounts();
+      if (cached) {
+        applyAccounts(cached);
+        setIsLoadingAccounts(false);
+        return;
+      }
+    }
+
+    setIsLoadingAccounts(true);
+    setAccountsError(null);
+
+    try {
+      const response = await getAccounts();
+      if (!mountedRef.current) return;
+
+      const mapped = mapAccountRecords(response?.accounts ?? []);
+      const next = mapped.length > 0 ? mapped : null;
+
+      if (next) {
+        writeCachedAccounts(next);
+        applyAccounts(next);
+      } else {
+        applyAccounts([FALLBACK_MAIN_ACCOUNT]);
+      }
+    } catch (err) {
+      if (!mountedRef.current) return;
+      const msg = err instanceof Error ? err.message : 'Unable to load AWS accounts.';
+      setAccountsError(msg);
+      // Fall back to cache if available, otherwise fallback account
+      const cached = readCachedAccounts();
+      applyAccounts(cached ?? [FALLBACK_MAIN_ACCOUNT]);
+    } finally {
+      if (mountedRef.current) setIsLoadingAccounts(false);
+    }
+  }, [applyAccounts]);
+
+  // Load accounts once auth is ready in live mode
+  useEffect(() => {
+    if (IS_MOCK || auth.isLoading) return;
+    if (auth.isAuthenticated) {
+      void fetchAccounts(false);
+    } else {
+      setAccounts([FALLBACK_MAIN_ACCOUNT]);
+      setSelectedId(FALLBACK_MAIN_ACCOUNT.id);
+      setIsLoadingAccounts(false);
+    }
+  }, [auth.isLoading, auth.isAuthenticated, fetchAccounts]);
+
+  // Keep selectedId valid when accounts list changes
   useEffect(() => {
     if (accounts.length === 0) {
       setSelectedId(null);
       return;
     }
-    if (
-      selectedId === null ||
-      !accounts.some((a: AwsConnectedAccount) => a.id === selectedId)
-    ) {
-      const next = accounts[0].id;
-      setSelectedId(next);
-      writeStoredSelectedId(next);
-    }
-  }, [accounts, selectedId]);
+    setSelectedId((prev) => {
+      if (prev && accounts.some((a) => a.id === prev)) return prev;
+      const first = accounts[0].id;
+      writeStoredSelectedId(first);
+      return first;
+    });
+  }, [accounts]);
 
-  const selectedAccount = useMemo(() => {
-    if (selectedId === null) return null;
-    return accounts.find((a: AwsConnectedAccount) => a.id === selectedId) ?? null;
-  }, [accounts, selectedId]);
+  const selectedAccount = useMemo(
+    () => (selectedId ? (accounts.find((a) => a.id === selectedId) ?? null) : null),
+    [accounts, selectedId],
+  );
 
+  // Seed mock scan data only in mock mode
   useEffect(() => {
-    if (!selectedAccount) return;
+    if (!IS_MOCK || !selectedAccount) return;
     ensureMockFullScanIfEmpty(
       selectedAccount.id,
       selectedAccount.accountId,
@@ -131,20 +255,28 @@ export function AwsAccountProvider({ children }: { children: ReactNode }) {
 
   const selectAccount = useCallback(
     (id: string) => {
-      if (!accounts.some((a: AwsConnectedAccount) => a.id === id)) return;
+      if (!accounts.some((a) => a.id === id)) return;
       setSelectedId(id);
       writeStoredSelectedId(id);
     },
     [accounts],
   );
 
+  const refreshAccounts = useCallback(async () => {
+    if (IS_MOCK) return;
+    await fetchAccounts(true);
+  }, [fetchAccounts]);
+
   const value = useMemo(
     () => ({
       accounts,
       selectedAccount,
       selectAccount,
+      isLoadingAccounts,
+      accountsError,
+      refreshAccounts,
     }),
-    [accounts, selectedAccount, selectAccount],
+    [accounts, selectedAccount, selectAccount, isLoadingAccounts, accountsError, refreshAccounts],
   );
 
   return (

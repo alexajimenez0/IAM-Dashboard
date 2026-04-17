@@ -63,13 +63,19 @@ export default defineConfig(async ({ mode }) => {
       host: true,
       proxy: {
         '/auth': {
-          target: 'https://erh3a09d7l.execute-api.us-east-1.amazonaws.com',
+          target: 'https://a99o55140b.execute-api.us-east-1.amazonaws.com',
           changeOrigin: true,
           rewrite: (requestPath) => `/v1${requestPath}`,
           headers: { 'Origin': 'http://localhost:3001' },
         },
         '/scan': {
-          target: 'https://erh3a09d7l.execute-api.us-east-1.amazonaws.com',
+          target: 'https://a99o55140b.execute-api.us-east-1.amazonaws.com',
+          changeOrigin: true,
+          rewrite: (requestPath) => `/v1${requestPath}`,
+          headers: { 'Origin': 'http://localhost:3001' },
+        },
+        '/accounts': {
+          target: 'https://a99o55140b.execute-api.us-east-1.amazonaws.com',
           changeOrigin: true,
           rewrite: (requestPath) => `/v1${requestPath}`,
           headers: { 'Origin': 'http://localhost:3001' },

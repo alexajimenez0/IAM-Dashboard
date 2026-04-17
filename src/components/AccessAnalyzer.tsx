@@ -19,6 +19,7 @@ import { FindingDetailPanel, type WorkflowData } from "./ui/FindingDetailPanel";
 import { toast } from "sonner";
 import { scanIAM, type ScanResponse } from "../services/api";
 import { useActiveScanResults } from "../hooks/useActiveScanResults";
+import { useAwsAccount } from "../context/AwsAccountContext";
 
 interface AccessAnalyzerFinding {
   id: string;
@@ -171,6 +172,18 @@ export function AccessAnalyzer() {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
   const { addScanResult } = useActiveScanResults();
+  const { selectedAccount } = useAwsAccount();
+  const selectedAccountKey = selectedAccount?.id ?? "__none__";
+
+  useEffect(() => {
+    setScanResult(null);
+    setWorkflows({});
+    setExpandedRow(null);
+    setError(null);
+    setSeverityFilter("all");
+    setTypeFilter("all");
+    setSearchTerm("");
+  }, [selectedAccountKey]);
 
   useEffect(() => {
     const findings = scanResult?.findings ?? [];
@@ -263,7 +276,7 @@ export function AccessAnalyzer() {
         scan_summary: { total_findings: 0, critical_findings: 0, high_findings: 0, medium_findings: 0, low_findings: 0, public_resources: 0, external_access_findings: 0, unused_findings: 0 },
       });
 
-      const response: ScanResponse = await scanIAM(selectedRegion);
+      const response: ScanResponse = await scanIAM(selectedRegion, selectedAccount?.accountId || undefined);
 
       const findings = response.results?.access_analyzer?.findings ?? mockFindings;
       const summary = response.results?.access_analyzer?.scan_summary ?? {

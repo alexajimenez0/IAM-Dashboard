@@ -203,15 +203,6 @@ lambda-out/
 npm-cache/
 nul
 
-# File I use to think
-temp.txt
-temp.md
-RBAC_Planning.json
-RBAC_Implementing.json
-auth-cookies.txt
-admin-cookies.txt
-Images
-
 # Merge / patch artifacts
 *.orig
 *.rej
@@ -221,14 +212,4 @@ Images
 
 # Local Redis dumps if bound to host
 dump.rdb
-CloudWatch.txt
-lambda.py
-lambda_policy.json
-.tfdata-s3-notify-validate
-.tfdata-ses-validate
-APIGateway_Auth_and_Scanner
-admin-cookies.txt
-auth-cookies.txt
-Images_Temp
-RBAC_Implementing.json
-RBAC_Planning.json
+

@@ -17,6 +17,7 @@ import { StatCard as SharedStatCard } from "./ui/StatCard";
 import { toast } from "sonner";
 import { scanSecurityHub, type ScanResponse } from "../services/api";
 import { useActiveScanResults } from "../hooks/useActiveScanResults";
+import { useAwsAccount } from "../context/AwsAccountContext";
 
 interface SecurityHubFinding {
   id: string;
@@ -156,7 +157,9 @@ export function SecurityHub() {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [scanProgress, setScanProgress] = useState(0);
   const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
-  const { addScanResult, getScanResult } = useActiveScanResults();
+  const { addScanResult, getScanResult, scanResultsVersion } = useActiveScanResults();
+  const { selectedAccount } = useAwsAccount();
+  const selectedAccountKey = selectedAccount?.id ?? "__none__";
 
   // Animate scan progress bar
   useEffect(() => {
@@ -168,13 +171,23 @@ export function SecurityHub() {
     return () => clearInterval(interval);
   }, [isScanning]);
 
-  // Load existing scan results if available
+  // Load existing scan results if available; clear on account switch
   useEffect(() => {
     const existingResult = getScanResult("security-hub");
     if (existingResult && existingResult.findings && existingResult.findings.length > 0) {
       transformAndSetFindings(existingResult);
+    } else {
+      setFindings([]);
+      setSummary({ total_findings: 0, critical_findings: 0, high_findings: 0, medium_findings: 0, low_findings: 0, informational_findings: 0, new_findings: 0, resolved_findings: 0, compliance_score: 100 });
+      setWorkflows({});
+      setExpandedRow(null);
+      setError(null);
+      setSelectedSeverity("all");
+      setSelectedStatus("all");
+      setSelectedProduct("all");
+      setSearchQuery("");
     }
-  }, []);
+  }, [selectedAccountKey, scanResultsVersion]);
 
   // Initialize workflow stubs when findings load
   useEffect(() => {
@@ -303,7 +316,7 @@ export function SecurityHub() {
         description: "Fetching security findings from AWS Security Hub...",
       });
 
-      const response: ScanResponse = await scanSecurityHub(selectedRegion);
+      const response: ScanResponse = await scanSecurityHub(selectedRegion, selectedAccount?.accountId || undefined);
 
       const errorMsg =
         response.error || response.results?.error || response.message;

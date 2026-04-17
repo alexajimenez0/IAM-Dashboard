@@ -534,7 +534,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
       // Call the real API - this should NEVER throw for full scan
       let response: ScanResponse;
       try {
-        response = await scanFull('us-east-1');
+        response = await scanFull('us-east-1', selectedAccount.accountId || undefined);
       } catch (apiError) {
         const msg = apiError instanceof Error ? apiError.message : String(apiError);
         const normalized = msg.toLowerCase();
