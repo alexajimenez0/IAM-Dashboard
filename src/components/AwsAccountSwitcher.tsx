@@ -443,7 +443,7 @@ export function AwsAccountSwitcher({ collapsed = false }: AwsAccountSwitcherProp
               ? accounts.filter((a) => getMockConnectionState(a.accountId) === "connected").length
               : accounts.length}
             {" / "}
-            {accounts.length} live
+            {accounts.length} {IS_MOCK ? "mock" : "live"}
           </span>
         </div>
 
